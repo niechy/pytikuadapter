@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "pytikuadapter"
+version = "0.1.0"
+description = ""
+authors = ["cy <47024820+niechy@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.12"
+pydantic = "^2.11.4"
+uvicorn = "==0.34.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
