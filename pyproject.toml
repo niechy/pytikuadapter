@@ -10,6 +10,8 @@ python = "^3.12"
 fastapi = "^0.115.12"
 pydantic = "^2.11.4"
 uvicorn = "==0.34.2"
+requests = "^2.32.3"
+aiohttp = "^3.11.18"
 
 
 [build-system]
