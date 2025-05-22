@@ -1,7 +1,5 @@
 # pytikuadapter
-(tikuadapter)[https://github.com/DokiDoki1103/tikuAdapter]
-
-的python版，从自己的角度加了些东西
+[tikuadapter](https://github.com/DokiDoki1103/tikuAdapter)的python版，从自己的角度加了些东西
 
 现在还是毛胚，目前简单实现了查询多题库的功能，返回都还是直接json
 
