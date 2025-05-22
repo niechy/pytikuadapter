@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 allsession: aiohttp.ClientSession | None = None
+adapterlist: dict = {}
 
 
 @asynccontextmanager
@@ -22,23 +23,24 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-adapterlist: dict = {}
-
-
-class Source(BaseModel):
-    name: str
-    key: str
 
 
 class Srequest(BaseModel):
     """
     search request
     """
+
+    class Argument(BaseModel):
+        token: str | None = None
+        key: str | None = None
+        model: str | None = None
+        search: str | None = None
+
     question: str = Field(min_length=1)
     options: list[str] | None = None
     type: int = Field(0, ge=0, le=4)
     key: str | None = None
-    use: list[Source]
+    use: dict[str, Argument]
 
 
 class AdapterAutoFactory(ABC):
@@ -51,7 +53,7 @@ class AdapterAutoFactory(ABC):
         adapterlist[cls.__name__] = cls()
 
     @abstractmethod
-    async def search(self, question: Srequest, key: str):
+    async def search(self, question: Srequest, arg: Srequest.Argument):
         pass
 
 
@@ -65,12 +67,12 @@ class Tikuhai(AdapterAutoFactory):
                      "User-Agent": "tikuhaiAdapter/0.1.0",
                      "v": "0.1.0"}
 
-    async def search(self, question: Srequest, key: str):
+    async def search(self, question: Srequest, arg: Srequest.Argument):
         body = {
             "question": question.question,
             "options": question.options,
             "type": question.type,
-            "key": key,
+            "key": arg.key,
             "questionData": ""
         }
         try:
@@ -90,14 +92,36 @@ class Enncy(AdapterAutoFactory):
     # 言溪没有填空
     # ‘single’ | ‘multiple’ | ‘judgement’ | ‘completion’
 
-    async def search(self, question: Srequest, key: str):
+    async def search(self, question: Srequest, arg: Srequest.Argument):
         _options = ""
         for option in question.options:
             _options = _options + option + "\n"
 
-        url = f"https://tk.enncy.cn/query?question={question.question}&options={_options}&type={self.TYPE[question.type]}&token={key}"
+        url = f"https://tk.enncy.cn/query?question={question.question}&options={_options}&type={self.TYPE[question.type]}&token={arg.token}"
         try:
             async with allsession.get(url) as response:
+                req = await response.json()
+                print(req)
+                return req
+        except Exception as e:
+            print(f"Request error: {e}")
+            return {"error": str(e)}
+
+
+class Like(AdapterAutoFactory):
+    url: str = "https://api.datam.site/search"
+    TYPE = {0: "【单选题】", 1: "【多选题】", 2: "【填空题】", 3: "【判断题】", 4: "【问答题】"}
+
+    async def search(self, question: Srequest, arg: Srequest.Argument):
+        body = {
+            "query": question.question,
+            "token": arg.token,
+            "model": arg.model,
+            "search": arg.search,
+        }
+
+        try:
+            async with allsession.get(self.url, json=body) as response:
                 req = await response.json()
                 print(req)
                 return req
@@ -134,10 +158,11 @@ class Sresponse(BaseModel):
 async def search_use(_search_request: Srequest):
     _ans = []
     _t: list[_asyncio.Task] = []
-    valid_adapters = [(use.name, use.key) for use in _search_request.use if use.name in adapterlist]
+    valid_adapters = [use for use in _search_request.use if use in adapterlist]
+    print(valid_adapters)
     async with asyncio.TaskGroup() as tg:
-        for name, key in valid_adapters:
-            _t.append(tg.create_task(adapterlist[name].search(_search_request, key)))
+        for adapter in valid_adapters:
+            _t.append(tg.create_task(adapterlist[adapter].search(_search_request, _search_request.use[adapter])))
 
     # return
     _ans = [i.result() for i in _t]
