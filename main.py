@@ -40,7 +40,8 @@ class AdapterAutoFactory(ABC):
 
 
 class adapterans:
-    ans:str
+    ans: str
+
 
 class Tikuhai(AdapterAutoFactory):
     url: str = "https://api.tikuhai.com/search"
@@ -48,22 +49,16 @@ class Tikuhai(AdapterAutoFactory):
                      "User-Agent": "tikuhaiAdapter/0.1.0",
                      "v": "0.1.0"}
 
-    def __init__(self):
-        self.body = {
-            "question": "",
-            "options": None,
-            "type": 0,
-            "key": "",
+    async def search(self, question: Srequest, key: str):
+        body = {
+            "question": question.question,
+            "options": question.options,
+            "type": question.type,
+            "key": key,
             "questionData": ""
         }
-
-    async def search(self, question: Srequest, key: str):
-        self.body["question"] = question.question
-        self.body["options"] = question.options
-        self.body["type"] = question.type
-        self.body["key"] = key
         async with aiohttp.ClientSession() as session:
-            async with session.post(self.url, headers=self.headers, json=self.body) as response:
+            async with session.post(self.url, headers=self.headers, json=body) as response:
                 return await response.json()
 
 
@@ -93,11 +88,11 @@ class Sresponse(BaseModel):
 
 @app.post("/adapter-service/search")
 async def search_use(_search_request: Srequest):
-    _t=""
+    _t = ""
     print(adapterlist)
 
     for use in _search_request.use:
         print(use)
         if use.name in adapterlist:
-            _t=await adapterlist[use.name].search(_search_request, use.key)
+            _t = await adapterlist[use.name].search(_search_request, use.key)
     return _t
