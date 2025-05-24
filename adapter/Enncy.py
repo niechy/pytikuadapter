@@ -24,7 +24,7 @@ class Enncy(Adapter):
             req = await response.json()
             if response.status == 200:
                 if req["code"] == 1:
-                    ans.answer = req["data"]["answer"]
+                    ans.answer = [req["data"]["answer"]]
                 else:
                     ans.error=ErrorType.TARGET_NO_ANSWER
             else:
