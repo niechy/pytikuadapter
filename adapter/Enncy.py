@@ -24,7 +24,13 @@ class Enncy(Adapter):
             req = await response.json()
             if response.status == 200:
                 if req["code"] == 1:
-                    ans.answer = [req["data"]["answer"]]
+                    ans.answer = req["data"]["answer"].split("#")
+                    # 劳动主体#劳动个体#劳动结果
+                    # 劳动最伟大劳动最美丽劳动最光荣劳动最崇高
+                    # 有些答案有分隔符有些没 我拿什么分，NLP吗？
+                    # 能分分，分不了摆
+                    if not isinstance(ans.answer, list):
+                        ans.answer=[ans.answer]
                 else:
                     ans.error=ErrorType.TARGET_NO_ANSWER
             else:

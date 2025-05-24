@@ -29,8 +29,7 @@ class Like(Adapter):
             if response.status == 200:
                 try:  #
                     req = await response.json()
-                    print(req)
-                except  json.JSONDecodeError as e:
+                except  json.JSONDecodeError:
                     ans.error = ErrorType.PARSER_JSON
                 if req["success"]:
                     if question.use["Like"].score is None or float(req["data"]["score"]) >= question.use["Like"].score:
