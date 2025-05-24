@@ -1,9 +1,8 @@
 from core import Adapter
-from models import Srequest
-
+from models import Srequest, AdapterAns, ErrorType
 
 class Enncy(Adapter):
-    # url: str = "https://tk.enncy.cn/query"言溪用get的，直接编码url
+    url: str = "https://tk.enncy.cn/query"
     TYPE = {0: "single", 1: "multiple", 3: "judgement", 2: "completion", 4: "completion"}
 
     # 言溪没有填空
@@ -13,13 +12,21 @@ class Enncy(Adapter):
         _options = ""
         for option in question.options:
             _options = _options + option + "\n"
+        params = {
+            "question": question.question,
+            "options": _options,
+            "type": self.TYPE[question.type],
+            "token": question.use["Enncy"].token
+        }
 
-        url = f"https://tk.enncy.cn/query?question={question.question}&options={_options}&type={self.TYPE[question.type]}&token={question.use["Enncy"].token}"
-        try:
-            async with super().session.get(url) as response:
-                req = await response.json()
-                print(req)
-                return req
-        except Exception as e:
-            print(f"Request error: {e}")
-            return {"error": str(e)}
+        async with super().session.get(self.url, params=params) as response:
+            ans=AdapterAns(None,question.type,None)
+            req = await response.json()
+            if response.status == 200:
+                if req["code"] == 1:
+                    ans.answer = req["data"]["answer"]
+                else:
+                    ans.error=ErrorType.TARGET_NO_ANSWER
+            else:
+                ans.error = ErrorType.TARGET_SERVER_ERROR
+            return ans

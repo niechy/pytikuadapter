@@ -12,5 +12,6 @@ async def lifespan(app: FastAPI):
     Adapter.session = aiohttp.ClientSession()
     async with Adapter.session:
         yield
+    await Adapter.session.close()
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)
