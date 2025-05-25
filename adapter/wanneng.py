@@ -3,9 +3,8 @@ from models import Srequest, AdapterAns, ErrorType
 
 
 class Wanneng(Adapter):  # pylint: disable=too-few-public-methods
-    def  __init__(self):
-        FREE=True
-        PAY=True
+    FREE=True
+    PAY=True
     async def search(self, question: Srequest):
         url: str = "http://lyck6.cn/scriptService/api/autoFreeAnswer"# 免费的
         body = {

@@ -9,8 +9,8 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
     TYPE_request = {0: "【单选题】：", 1: "【多选题】：", 2: "【填空题】：", 3: "【判断题】：", 4: "【问答题】："}
     TYPE_response = {1: "选择题", 2: "填空题", 3: "判断题", 0: "其他题"}
     headers: dict = {"Content-Type": "application/json"}
-    def  __init__(self):
-        pass
+    FREE = False
+    PAY = True
     async def search(self, question: Srequest):
         _options = ""
         for option in question.options:

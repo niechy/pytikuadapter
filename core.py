@@ -15,6 +15,7 @@ class AdapterMeta(ABCMeta):
             # 将全局session改为每个adapter一个session
             # 方便adapter设置重试以及超时等
         return new_class
+
     def __del__(self):
         if self.session:
             self.session.close()
@@ -28,9 +29,6 @@ class Adapter(ABC, metaclass=AdapterMeta):
     PAY = True  # 有付费接口就设置为True
 
     # 暂且默认为需要付费
-    @abstractmethod
-    def __init__(self):
-        pass
 
     @abstractmethod
     async def search(self, question: Srequest):

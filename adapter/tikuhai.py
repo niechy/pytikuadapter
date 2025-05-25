@@ -13,16 +13,12 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
                      "User-Agent": "pytikuhaiAdapter/1.0.0",
                      "v": "1.0.0"}
 
-    def __init__(self):
-        """
-        初始化，设置FREE和PAY标志用于状态标识
-        Attributes:
-            FREE (bool): 表示有无免费模式，默认值为False
-            PAY (bool): 表示有无付费模式，默认值为True
-
-        """
-        FREE = False
-        PAY = True
+    """
+        FREE (bool): 表示有无免费模式，默认值为False
+        PAY (bool): 表示有无付费模式，默认值为True
+    """
+    FREE = False
+    PAY = True
 
     async def search(self, question: Srequest):
         """

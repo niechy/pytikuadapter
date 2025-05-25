@@ -8,8 +8,8 @@ class Enncy(Adapter):  # pylint: disable=too-few-public-methods
 
     # 言溪没有填空
     # ‘single’ | ‘multiple’ | ‘judgement’ | ‘completion’
-    def __init__(self):
-        pass
+    FREE = False
+    PAY = True
         # 言溪就是只有付费题库的
     async def search(self, question: Srequest):
         _options = ""
