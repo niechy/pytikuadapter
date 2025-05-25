@@ -3,7 +3,7 @@ import aiohttp
 from fastapi import FastAPI
 from core import Adapter
 from routers import router
-import adapter  # 别动这行
+import adapter  # pylint: disable=unused-import # 别动这行
 
 
 @asynccontextmanager

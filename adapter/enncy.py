@@ -1,7 +1,8 @@
 from core import Adapter
 from models import Srequest, AdapterAns, ErrorType
 
-class Enncy(Adapter):
+
+class Enncy(Adapter):  # pylint: disable=too-few-public-methods
     url: str = "https://tk.enncy.cn/query"
     TYPE = {0: "single", 1: "multiple", 3: "judgement", 2: "completion", 4: "completion"}
 
@@ -20,7 +21,7 @@ class Enncy(Adapter):
         }
 
         async with super().session.get(self.url, params=params) as response:
-            ans=AdapterAns(None,question.type,None)
+            ans = AdapterAns(None, question.type, None)
             req = await response.json()
             if response.status == 200:
                 if req["code"] == 1:
@@ -30,9 +31,9 @@ class Enncy(Adapter):
                     # 有些答案有分隔符有些没 我拿什么分，NLP吗？
                     # 能分分，分不了摆
                     if not isinstance(ans.answer, list):
-                        ans.answer=[ans.answer]
+                        ans.answer = [ans.answer]
                 else:
-                    ans.error=ErrorType.TARGET_NO_ANSWER
+                    ans.error = ErrorType.TARGET_NO_ANSWER
             else:
                 ans.error = ErrorType.TARGET_SERVER_ERROR
             return ans

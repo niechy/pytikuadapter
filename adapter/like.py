@@ -4,7 +4,7 @@ from core import Adapter
 from models import Srequest, AdapterAns, ErrorType
 
 
-class Like(Adapter):
+class Like(Adapter):  # pylint: disable=too-few-public-methods
     url: str = "https://api.datam.site/search"
     TYPE_request = {0: "【单选题】", 1: "【多选题】", 2: "【填空题】", 3: "【判断题】", 4: "【问答题】"}
     TYPE_response = {1: "选择题", 2: "填空题", 3: "判断题", 0: "其他题"}
@@ -34,7 +34,7 @@ class Like(Adapter):
                 if req["success"]:
                     if question.use["Like"].score is None or float(req["data"]["score"]) >= question.use["Like"].score:
                         _type = req["data"]["type"]
-                        ans.answer=[]
+                        ans.answer = []
                         match _type:
                             case 1:
                                 for i in req["data"]["choose"]:
@@ -43,9 +43,9 @@ class Like(Adapter):
                                 for i in req["data"]["fills"]:
                                     ans.answer.append(i)
                             case 3:
-                                ans.answer = ["正确" if req["data"]["judge"] ==1 else "错误"]
+                                ans.answer = ["正确" if req["data"]["judge"] == 1 else "错误"]
                             case 0:
-                                ans.answer=req["data"]["others"]
+                                ans.answer = req["data"]["others"]
                     else:
                         ans.error = ErrorType.LOW_CONFIDENCE_SCORE
                 else:
@@ -53,4 +53,3 @@ class Like(Adapter):
             else:
                 ans.error = ErrorType.TARGET_SERVER_ERROR
             return ans
-
