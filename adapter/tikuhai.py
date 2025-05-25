@@ -1,12 +1,16 @@
+from models import AdapterAns, ErrorType,Srequest
 from core import Adapter
-from models import Srequest, AdapterAns, ErrorType
 
 
 class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
+
     url: str = "https://api.tikuhai.com/search"
     headers: dict = {"Content-Type": "application/json",
                      "User-Agent": "pytikuhaiAdapter/1.0.0",
                      "v": "1.0.0"}
+
+    def __init__(self):
+        pass
 
     async def search(self, question: Srequest):
         body = {
@@ -16,8 +20,7 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
             "key": question.use["Tikuhai"].key,
             "questionData": ""
         }
-        # try:
-        async with super().session.post(self.url, headers=self.headers, json=body) as response:
+        async with super().session.post(url=self.url, headers=self.headers, json=body) as response:
             ans: AdapterAns = AdapterAns(None, question.type, None)
             if response.status == 200:
                 req = await response.json()
@@ -31,7 +34,3 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
             else:
                 ans.error = ErrorType.TARGET_SERVER_ERROR
             return ans
-
-        # except Exception as e:
-        #     print(f"Request error: {e}")
-        #     return {"error": str(e)}

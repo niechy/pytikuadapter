@@ -6,16 +6,17 @@ from models import Srequest, AdapterAns, ErrorType
 
 class Like(Adapter):  # pylint: disable=too-few-public-methods
     url: str = "https://api.datam.site/search"
-    TYPE_request = {0: "【单选题】", 1: "【多选题】", 2: "【填空题】", 3: "【判断题】", 4: "【问答题】"}
+    TYPE_request = {0: "【单选题】：", 1: "【多选题】：", 2: "【填空题】：", 3: "【判断题】：", 4: "【问答题】："}
     TYPE_response = {1: "选择题", 2: "填空题", 3: "判断题", 0: "其他题"}
     headers: dict = {"Content-Type": "application/json"}
-
+    def  __init__(self):
+        pass
     async def search(self, question: Srequest):
         _options = ""
         for option in question.options:
             _options = _options + option + "\n"
         body = {
-            "query": self.TYPE_request[question.type] + question.question + _options,
+            "query": self.TYPE_request[question.type] + question.question +"选项："+ _options,
             "token": question.use["Like"].token,
         }
         if question.use["Like"].model is not None:
@@ -39,7 +40,7 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
                         match _type:
                             case 1:
                                 for i in req["data"]["choose"]:
-                                    ans.answer.append(question.options[super().OPTION[i]])
+                                    ans.answer.append(question.options[self.OPTION[i]])
                             case 2:
                                 for i in req["data"]["fills"]:
                                     ans.answer.append(i)

@@ -8,7 +8,9 @@ class Enncy(Adapter):  # pylint: disable=too-few-public-methods
 
     # 言溪没有填空
     # ‘single’ | ‘multiple’ | ‘judgement’ | ‘completion’
-
+    def __init__(self):
+        pass
+        # 言溪就是只有付费题库的
     async def search(self, question: Srequest):
         _options = ""
         for option in question.options:
@@ -20,7 +22,7 @@ class Enncy(Adapter):  # pylint: disable=too-few-public-methods
             "token": question.use["Enncy"].token
         }
 
-        async with super().session.get(self.url, params=params) as response:
+        async with super().session.get(url=self.url, params=params) as response:
             ans = AdapterAns(None, question.type, None)
             req = await response.json()
             if response.status == 200:

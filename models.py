@@ -1,40 +1,35 @@
 from enum import Enum
-
 from pydantic import BaseModel, Field
+from typing import List, Union
 
+class Qtype(int,Enum):
+    normal: 1
+    advanced: 2
 
+class Argument(BaseModel):
+    token: str | None = None
+    key: str | None = None
+    model: str | None = None
+    search: bool | None = None
+    score: float | None = None
+    query_type: Qtype | None = None
+    location: str | None = None # 万能题库查询需要的源地址比如chaoxing.com
+    # 不够灵活，要是新题库有新的东西得一直加下去
+    # 考虑把adapter独有的Argument拆到每个adapter中
+    # 投降QAQ，拆了半天总有问题，暂时搁置
+
+# 只加不减
 class Srequest(BaseModel):
     """
     search request
     """
 
-    class Argument(BaseModel):
-        token: str | None = None
-        key: str | None = None
-        model: str | None = None
-        search: bool | None = None
-        score:float  | None = None
-
     question: str = Field(min_length=1)
     options: list[str] | None = None
     type: int = Field(0, ge=0, le=4)
     key: str | None = None
-    use: dict[str, Argument]
+    use: dict[str, Argument] | None = None
 
-
-#
-# class AdapterAutoFactory(ABC):
-#     """
-#         注册工厂
-#     """
-#
-#     def __init_subclass__(cls, **kwargs):
-#         super().__init_subclass__()
-#         adapterlist[cls.__name__] = cls()
-#
-#     @abstractmethod
-#     async def search(self, question: Srequest, arg: Srequest.Argument):
-#         pass
 
 class ErrorType(str, Enum):
     """
@@ -45,21 +40,26 @@ class ErrorType(str, Enum):
     TARGET_NO_ANSWER = "对方没有答案"
     PARSER_JSON = "解析JSON错误"
     TOKEN_REQUIRED = "需要提供TOKEN"
-    LOW_CONFIDENCE_SCORE="答案置信分数过低"
+    LOW_CONFIDENCE_SCORE = "答案置信分数过低"
+
 
 class AdapterAns:
+    answer: list[str] | None
+    type: int | None
+    error: ErrorType | None = None
 
-    answer: list[str]|None
-    type:int|None
-    error:ErrorType  | None = None
-    def __init__(self,  ans,anstype,error):
+    def __init__(self, ans, anstype, error):
         self.answer = ans
         self.type = anstype
         self.error = error
+
     def __setitem__(self, key, value):
         self.__dict__[key] = value
+
     def __getitem__(self, item):
         return self.__dict__[item]
+
+
 class A(BaseModel):
     """
         answerdata
