@@ -8,8 +8,6 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
     url: str = "https://api.datam.site/search"
     TYPE_request = {0: "【单选题】", 1: "【多选题】", 2: "【填空题】", 3: "【判断题】", 4: "【问答题】"}
     TYPE_response = {1: "选择题", 2: "填空题", 3: "判断题", 0: "其他题"}
-    OPTION = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4, "F": 5, "G": 6, "H": 7, "I": 8, "J": 9, "K": 10, "L": 11, "M": 12,
-              "N": 13, }
     headers: dict = {"Content-Type": "application/json"}
 
     async def search(self, question: Srequest):
@@ -29,16 +27,19 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
             if response.status == 200:
                 try:  #
                     req = await response.json()
+                    print(req)
                 except  json.JSONDecodeError:
                     ans.error = ErrorType.PARSER_JSON
                 if req["success"]:
                     if question.use["Like"].score is None or float(req["data"]["score"]) >= question.use["Like"].score:
                         _type = req["data"]["type"]
+                        # 这里有点怪，测试时小概率提示找不到["type"]
+                        # 大模型的原因吗？有空再来写验证这些存不存在吧
                         ans.answer = []
                         match _type:
                             case 1:
                                 for i in req["data"]["choose"]:
-                                    ans.answer.append(question.options[self.OPTION[i]])
+                                    ans.answer.append(question.options[super().OPTION[i]])
                             case 2:
                                 for i in req["data"]["fills"]:
                                     ans.answer.append(i)
