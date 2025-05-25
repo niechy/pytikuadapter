@@ -15,9 +15,9 @@ class Icodef(Adapter):  # pylint: disable=too-few-public-methods
         #     "key": question.use["Icodef"].key,
         #     "questionData": ""
         # }
-        url = f"https://q.icodef.com/api/v1/q/{question.question}?simple=false"
+        url = f"https://q.icodef.com/api/v1/q/{question.question}"
         # 咱不用简单模式哈
-        async with super().session.get(url=url, headers={"Authorization": question.use["Icodef"].token}) as response:
+        async with self.session.get(url=url,  params={"simple":false}, headers={"Authorization": question.use["Icodef"].token}) as response:
             ans: AdapterAns = AdapterAns(None, question.type, None)
             if response.status == 200:
                 req = await response.json()

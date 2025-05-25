@@ -1,4 +1,5 @@
-###
+###单选
+
 POST http://localhost:8000/adapter-service/search
 
 {
@@ -12,13 +13,52 @@ POST http://localhost:8000/adapter-service/search
   "type": 0,
   "use": {
     "Tikuhai": {
-      "key": "*****"
+      "key": "******"
     },
     "Enncy": {
-      "token": "*******"
+      "token": "******"
     },
     "Like": {
-      "token": "*****"
-    }
+      "token": "******"
+    },
+    "Icodef": {
+      "token": "******"
+    },
+    "Wanneng":{
+        "token":"******"
+    },
+    "Lemon":{}
+  }
+}
+
+###多选
+POST http://localhost:8000/adapter-service/search
+
+{
+  "question": "通过劳动教育，使学生能够理解和形成马克思主义劳动观，牢固树立（）的观念。",
+  "options": [
+    "A劳动最光荣",
+    "B劳动最崇高",
+    "C劳动最伟大",
+    "D劳动最美丽"
+  ],
+  "type": 1,
+  "use": {
+    "Tikuhai": {
+      "key": "******"
+    },
+    "Enncy": {
+      "token": "******"
+    },
+    "Like": {
+      "token": "******"
+    },
+    "Icodef": {
+      "token": "******"
+    },
+    "Wanneng":{
+        "token":"******"
+    },
+    "Lemon":{}
   }
 }

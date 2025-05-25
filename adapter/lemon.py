@@ -16,16 +16,16 @@ class Lemon(Adapter):  # pylint: disable=too-few-public-methods
             "options": question.options,
             "type": question.type,
         }
-        if question.use["Wanneng"].query_type == 2 :
-            if question.use["Wanneng"].token is None:
+        if question.use["Lemon"].query_type == 2 :
+            if question.use["Lemon"].token is None:
                 return AdapterAns(None, question.type, ErrorType.TOKEN_REQUIRED)
             else:
                 url = self.url + "/api/v1/mcx"
         else:
             url = self.url + "/api/v1/cx"
-            if question.use["Wanneng"].token is not None:
-                header["Authorization"] = question.use["Wanneng"].token
-        async with super().session.post(url=url,headers=header, json=body) as response:
+            if question.use["Lemon"].token is not None:
+                header["Authorization"] = question.use["Lemon"].token
+        async with self.session.post(url=url,headers=header, json=body) as response:
             ans: AdapterAns = AdapterAns(None, question.type, None)
             if response.status == 200:
                 req = await response.json()

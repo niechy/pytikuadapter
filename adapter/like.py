@@ -23,7 +23,7 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
             body["model"] = question.use["Like"].model
         if question.use["Like"].search is not None:
             body["search"] = question.use["Like"].search
-        async with super().session.post(self.url, headers=self.headers, json=body) as response:
+        async with self.session.post(self.url, headers=self.headers, json=body) as response:
             ans = AdapterAns(None, question.type, None)
             if response.status == 200:
                 try:  #
