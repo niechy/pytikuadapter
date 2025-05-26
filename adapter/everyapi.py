@@ -2,22 +2,22 @@ from core import Adapter
 from models import Srequest, AdapterAns, ErrorType
 
 
-class Icodef(Adapter):  # pylint: disable=too-few-public-methods
+class EveryAPI(Adapter):  # pylint: disable=too-few-public-methods
     FREE = True  # 注意普通搜索没搜到时会用高级搜索使用点数
-    PAY = True  # 爱点有ai，暂未支持，先挖坑
+    PAY = True  # EveryAPI有ai，暂未支持，先挖坑
 
     async def search(self, question: Srequest):
         # body = {
         #     "question": question.question,
         #     "options": question.options,
         #     "type": question.type,
-        #     "key": question.use["Icodef"].key,
+        #     "key": question.use["EveryAPI"].key,
         #     "questionData": ""
         # }
         url = f"https://q.icodef.com/api/v1/q/{question.question}"
         # 咱不用简单模式哈
         async with self.session.get(url=url, params={"simple": 0},
-                                    headers={"Authorization": question.use["Icodef"].token}) as response:
+                                    headers={"Authorization": question.use["EveryAPI"].token}) as response:
             ans: AdapterAns = AdapterAns(None, question.type, None)
             if response.status == 200:
                 req = await response.json()

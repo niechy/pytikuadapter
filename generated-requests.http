@@ -21,7 +21,7 @@ POST http://localhost:8000/adapter-service/search
     "Like": {
       "token": "******"
     },
-    "Icodef": {
+    "EveryAPI": {
       "token": "******"
     },
     "Wanneng":{
@@ -53,7 +53,7 @@ POST http://localhost:8000/adapter-service/search
     "Like": {
       "token": "******"
     },
-    "Icodef": {
+    "EveryAPI": {
       "token": "******"
     },
     "Wanneng":{
