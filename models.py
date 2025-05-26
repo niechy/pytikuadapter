@@ -100,4 +100,4 @@ class Sresponse(BaseModel):
     question: str = Field(min_length=1)
     options: list[str] | None = None
     type: int = Field(0, ge=0, le=4)  # 单选0多选1填空2判断3问答4
-    answer: A
+    answer: A | None = None

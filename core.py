@@ -1,7 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod, ABCMeta
 import aiohttp
-from models import Srequest
+from models import Srequest, Sresponse,AdapterAns,A
 
 
 class AdapterMeta(ABCMeta):
@@ -11,13 +11,12 @@ class AdapterMeta(ABCMeta):
         new_class = super().__new__(mcs, name, bases, attrs)
         if name != 'Adapter':
             mcs.adapterdict[name] = new_class()
-                # mcs.adapterdict[name].session = aiohttp.ClientSession()
-                # 将全局session改为每个adapter一个session
-                # 方便adapter设置重试以及超时等
+            # mcs.adapterdict[name].session = aiohttp.ClientSession()
+            # 将全局session改为每个adapter一个session
+            # 方便adapter设置重试以及超时等
 
-            #aiohttp.ClientSession()与close()移到lifespan()中管理
+            # aiohttp.ClientSession()与close()移到lifespan()中管理
         return new_class
-
 
 
 class Adapter(ABC, metaclass=AdapterMeta):
@@ -34,6 +33,37 @@ class Adapter(ABC, metaclass=AdapterMeta):
         pass
 
 
+# 准备写答案匹配
+# 这里能做很多文章
+# 打算写个笨笨的暴力
+# https://scikit-learn.org.cn/view/108.html
+# 查了相关聚类算法，OPTICS的效果挺好，就用它了
+# 写个OPTICS聚类（不知道写不写的出来，代码低手.jpg）
+async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]) -> Sresponse:
+    # _adapter_ans.pop()
+    _temp={}
+    allans=Sresponse(question=_search_request.question,options=_search_request.options,type=_search_request.type)
+    allans.answer=A()
+    allans.answer.allAnswer=[]
+    allans.answer.bestAnswer=[]
+    if _search_request.options is not None:
+        # 单选多选大概没问题
+        for i in _adapter_ans:
+            if i.type == _search_request.type:
+                allans.answer.allAnswer.append(i.answer)
+                for j in i.answer:
+                    if j in _search_request.options:
+                        _temp.setdefault(j,0)
+                        _temp[j] +=1
+        _max=max(_temp.values())
+        for i in _temp:
+            if _temp[i]==_max:
+                allans.answer.bestAnswer.append(i)
+    else:
+        pass
+    return allans
+
+
 async def search_use(_search_request: Srequest):
     _ans = []
     _t: list = []
@@ -42,5 +72,6 @@ async def search_use(_search_request: Srequest):
         for adapter in valid_adapters:
             _t.append(tg.create_task(AdapterMeta.adapterdict[adapter].search(_search_request)))
     _ans = [i.result() for i in _t]
-    print(_ans)
+    # ans=await answer_match(_search_request, _ans)
+    # print(_ans)
     return _ans
