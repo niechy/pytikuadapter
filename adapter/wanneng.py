@@ -28,6 +28,7 @@ class Wanneng(Adapter):  # pylint: disable=too-few-public-methods
 
                     else:
                         ans.answer = req["result"]["answers"]
+                        #万能没匹配成功会返回二维数组，应该要处理一下
                 else:
                     ans.error = ErrorType.TARGET_SERVER_ERROR
             elif response.status == 429:

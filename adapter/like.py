@@ -11,12 +11,13 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
     headers: dict = {"Content-Type": "application/json"}
     FREE = False
     PAY = True
+
     async def search(self, question: Srequest):
         _options = ""
         for option in question.options:
             _options = _options + option + "\n"
         body = {
-            "query": self.TYPE_request[question.type] + question.question +"选项："+ _options,
+            "query": self.TYPE_request[question.type] + question.question + "选项：" + _options,
             "token": question.use["Like"].token,
         }
         if question.use["Like"].model is not None:
@@ -41,13 +42,20 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
                             case 1:
                                 for i in req["data"]["choose"]:
                                     ans.answer.append(question.options[self.OPTION[i]])
+                                if not (Srequest.type == 1 or Srequest.type == 0):
+                                    ans.type = 0  # 传进来的是非选择题，但是返回的是选择题，特意让不一致，后面统一处理把不一致地删了
+                                    # 不在这处理
                             case 2:
                                 for i in req["data"]["fills"]:
                                     ans.answer.append(i)
+                                ans.type = 2
                             case 3:
                                 ans.answer = ["正确" if req["data"]["judge"] == 1 else "错误"]
+                                ans.type = 3
                             case 0:
                                 ans.answer = req["data"]["others"]
+                                if not (Srequest.type == 2 or Srequest.type == 4):
+                                    ans.type=4
                     else:
                         ans.error = ErrorType.LOW_CONFIDENCE_SCORE
                 else:

@@ -27,7 +27,7 @@ class EveryAPI(Adapter):  # pylint: disable=too-few-public-methods
                     for i in req["data"]["correct"]:
                         ans.answer.append(i["content"])
                     ans.type = req["data"]["type"] - 1
-                    # 在icodef题型是1-5，而本框架题型是0-4，故-1
+                    # 在EveryAPI题型是1-5，而本框架题型是0-4，故-1
                     # ans.answer = req["data"]["answer"]
                 else:
                     ans.error = ErrorType.TARGET_NO_ANSWER
