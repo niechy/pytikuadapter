@@ -62,3 +62,35 @@ POST http://localhost:8000/adapter-service/search
     "Lemon":{}
   }
 }
+
+
+###判断
+###【判断题】劳动者应该体会劳动创造美好生活，认识到劳动不分贵贱，热爱劳动，尊重普通劳动者，培养勤俭、奋斗、创新、奉献的劳动精神。（）选项：A对B错
+POST http://localhost:8000/adapter-service/search
+
+{
+  "question": "劳动者应该体验劳动创造美好生活，认识到劳动不分贵贱，热爱劳动，尊重普通劳动者，培养勤俭、奋斗、创新、奉献的劳动精神。",
+  "options": [
+    "A对",
+    "B错"
+  ],
+  "type": 3,
+  "use": {
+    "Tikuhai": {
+      "key": "******"
+    },
+    "Enncy": {
+      "token": "******"
+    },
+    "Like": {
+      "token": "******"
+    },
+    "EveryAPI": {
+      "token": "******"
+    },
+    "Wanneng":{
+        "token":"******"
+    },
+    "Lemon":{}
+  }
+}
