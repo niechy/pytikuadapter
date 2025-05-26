@@ -42,7 +42,7 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
                             case 1:
                                 for i in req["data"]["choose"]:
                                     ans.answer.append(question.options[self.OPTION[i]])
-                                if not (Srequest.type == 1 or Srequest.type == 0):
+                                if not (question.type == 1 or question.type == 0):
                                     ans.type = 0  # 传进来的是非选择题，但是返回的是选择题，特意让不一致，后面统一处理把不一致地删了
                                     # 不在这处理
                             case 2:
@@ -54,7 +54,7 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
                                 ans.type = 3
                             case 0:
                                 ans.answer = req["data"]["others"]
-                                if not (Srequest.type == 2 or Srequest.type == 4):
+                                if not (question.type == 2 or question.type == 4):
                                     ans.type=4
                     else:
                         ans.error = ErrorType.LOW_CONFIDENCE_SCORE
