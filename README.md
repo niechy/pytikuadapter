@@ -1,7 +1,23 @@
 # pytikuadapter
 [tikuadapter](https://github.com/DokiDoki1103/tikuAdapter)的python版，从自己的角度加了些东西
 
-现在还是毛胚，目前简单实现了查询多题库的功能，返回都还是直接json
+现在还是毛胚，目前简单实现了查询多题库的功能
+
+如果想要加入更多题库，可以看看adapter/tikuhai.py
+
+支持的题库：
+
+Like知识库
+
+言溪题库
+
+题库海题库
+
+Lemon题库
+
+万能题库
+
+爱点题库
 
 Todo（大致按优先级排序）
 
