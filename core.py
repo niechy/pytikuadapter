@@ -11,14 +11,13 @@ class AdapterMeta(ABCMeta):
         new_class = super().__new__(mcs, name, bases, attrs)
         if name != 'Adapter':
             mcs.adapterdict[name] = new_class()
-            mcs.adapterdict[name].session = aiohttp.ClientSession()
-            # 将全局session改为每个adapter一个session
-            # 方便adapter设置重试以及超时等
+                # mcs.adapterdict[name].session = aiohttp.ClientSession()
+                # 将全局session改为每个adapter一个session
+                # 方便adapter设置重试以及超时等
+
+            #aiohttp.ClientSession()与close()移到lifespan()中管理
         return new_class
 
-    def __del__(self):
-        if self.session:
-            self.session.close()
 
 
 class Adapter(ABC, metaclass=AdapterMeta):
