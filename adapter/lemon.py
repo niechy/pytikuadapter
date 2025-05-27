@@ -22,7 +22,7 @@ class Lemon(Adapter):  # pylint: disable=too-few-public-methods
         else:
             url = self.url + "/api/v1/cx"
             if question.use["Lemon"].token is not None:
-                header["Authorization"] = question.use["Lemon"].token
+                header["Authorization"] = "Bearer "+question.use["Lemon"].token
         async with self.session.post(url=url,headers=header, json=body) as response:
             ans: AdapterAns = AdapterAns(None, question.type, None)
             if response.status == 200:

@@ -17,7 +17,7 @@ class EveryAPI(Adapter):  # pylint: disable=too-few-public-methods
         url = f"https://q.icodef.com/api/v1/q/{question.question}"
         # 咱不用简单模式哈
         async with self.session.get(url=url, params={"simple": 0},
-                                    headers={"Authorization": question.use["EveryAPI"].token}) as response:
+                                    headers={"Authorization": "Bearer "+question.use["EveryAPI"].token}) as response:
             ans: AdapterAns = AdapterAns(None, question.type, None)
             if response.status == 200:
                 req = await response.json()
