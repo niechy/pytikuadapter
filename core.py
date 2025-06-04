@@ -4,6 +4,7 @@ import aiohttp
 from models import Srequest, Sresponse, AdapterAns, A
 from collections import defaultdict
 
+
 class AdapterMeta(ABCMeta):
     adapterdict = {}
 
@@ -31,8 +32,11 @@ class Adapter(ABC, metaclass=AdapterMeta):
     @abstractmethod
     async def search(self, question: Srequest):
         pass
-TRUE_LIST=["正确", "对", "✓", "√", "v", "是", "T", "t", "Y", "y", "中"]
-FALSE_LIST=["错误", "错", "✗", "叉", "×", "否", "不对", "不正确", "f", "F", "n", "N", "否定", "不中"]
+
+
+TRUE_LIST = ["正确", "对", "✓", "√", "v", "是", "T", "t", "Y", "y", "中"]
+FALSE_LIST = ["错误", "错", "✗", "叉", "×", "否", "不对", "不正确", "f", "F", "n", "N", "否定", "不中"]
+
 
 # 准备写答案匹配
 # 这里能做很多文章
@@ -40,6 +44,32 @@ FALSE_LIST=["错误", "错", "✗", "叉", "×", "否", "不对", "不正确", "
 # https://scikit-learn.org.cn/view/108.html
 # 查了相关聚类算法，OPTICS的效果挺好，就用它了
 # 写个OPTICS聚类（不知道写不写的出来，代码低手.jpg）
+async def answer_match_new(_search_request: Srequest, _adapter_ans: list[AdapterAns]) -> Sresponse:
+    """
+        自己写了点加ai缝合的
+        单选题有选项：
+            使用层次聚类或K-means（指定簇数=选项数）进行分组。
+            按聚类大小降序遍历，首个包含预设选项的聚类作为答案。
+        单选题没选项：
+            直接选择最大聚类的众数答案。
+        多选题有选项：
+            聚类，（DBSCAN，HDBSCAN，OPTICS这几个可去离群值，但对只有四到五个选项的极小数据，基于密度的聚类效果可能不好，全认为是离群值或直接都丢到一个聚类中去了）
+            保留所有包含预设选项的聚类（即使小簇也需检查）。
+            计算最大候选簇的样本数N_max，其他候选簇若样本数≥（阈值*N_max）则并入答案。
+            若无候选簇包含选项，退回无选项流程处理。
+        多选题没选项:
+            选择最大聚类作为核心答案。
+            其他聚类若样本数≥阈值*N_max，则视为补充答案。
+        判断，填空，问答:
+            直接提取最大聚类的众数答案。
+            可选增强：对最大聚类内答案做语义相似度过滤（如BERT编码+余弦相似度），剔除低置信样本。
+        """
+    allans = Sresponse(question=_search_request.question, options=_search_request.options, type=_search_request.type)
+    allans.answer = A()
+
+    pass
+
+
 async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]) -> Sresponse:
     # _temp = {}
     answer_counts = defaultdict(int)
@@ -53,13 +83,13 @@ async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]
             continue
         allans.answer.allAnswer.append(i.answer)
         for j in i.answer:
-            if i.type in (0,1):
+            if i.type in (0, 1):
                 if _search_request.options is not None:
                     if j in _search_request.options:
                         answer_counts[j] += 1
                 else:
                     answer_counts[j] += 1
-            elif i.type ==3:
+            elif i.type == 3:
                 if j in TRUE_LIST:
                     answer_counts["对"] += 1
                 elif j in FALSE_LIST:
