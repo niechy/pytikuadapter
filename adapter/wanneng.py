@@ -27,7 +27,7 @@ class Wanneng(Adapter):  # pylint: disable=too-few-public-methods
                         for i in req["result"]["answers"]:
                             ans.answer.append(question.options[i])
                     else:
-                        if len(req["result"]["answers"]) is 0:
+                        if len(req["result"]["answers"]) == 0:
                             ans.answer=None
                             ans.error=ErrorType.TARGET_NO_ANSWER
                         else :
