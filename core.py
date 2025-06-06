@@ -1,10 +1,11 @@
 import asyncio
+import hashlib
 from abc import ABC, abstractmethod, ABCMeta
 import aiohttp
 from models import Srequest, Sresponse, AdapterAns, A
 from collections import defaultdict
-
-
+from sql import CAO
+questionCAO=CAO()
 class AdapterMeta(ABCMeta):
     adapterdict = {}
 
@@ -69,6 +70,61 @@ async def answer_match_new(_search_request: Srequest, _adapter_ans: list[Adapter
 
     pass
 
+# DROP TABLE IF EXISTS `tiku`;
+# CREATE TABLE tiku (
+#     id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 自增主键
+#     question TEXT NOT NULL,               -- 问题原文（保留完整格式）
+#     question_text TEXT NOT NULL,          -- 清洗后的问题（仅汉字/数字/字母）
+#     question_hash TEXT NOT NULL,          -- 问题文本的哈希值
+#     type INTEGER NOT NULL ,               -- 题目类型
+#     options TEXT NOT NULL,                -- 选项（建议JSON格式存储）
+#     full_hash TEXT NOT NULL,              -- 完整题目哈希（问题+选项）
+#     source TEXT,                          -- 题目来源
+#     answer TEXT NOT NULL,                 -- 正确答案
+#     tags TEXT,                            -- 标签（逗号分隔或JSON）
+#     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- 新增：创建时间
+#     updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP   -- 新增：更新时间
+# );
+#
+# -- 创建索引优化查询
+# CREATE INDEX idx_question_text ON tiku(question_text);  -- 模糊匹配索引
+# CREATE UNIQUE INDEX idx_full_hash ON tiku(full_hash);   -- 哈希唯一性索引
+
+async def local_save(_search_request: Srequest, answer:list[str]):
+    # 指定要插入的列名，并使用 ? 占位符
+    md5 = hashlib.md5()
+    query = """
+            INSERT INTO tiku (question, \
+                              question_text, \
+                              question_hash, \
+                              type, \
+                              options, \
+                              full_hash, \
+                              source, \
+                              answer, \
+                              tags, \
+                              created_time, \
+                              updated_time) \
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) \
+            """
+
+    # 构造参数列表，其中部分字段设为默认值或占位符
+    params = (
+        _search_request.question,
+        "1",  # question_text
+        "1",  # question_hash
+        _search_request.type,
+        str(_search_request.options),  # options
+        "1",  # full_hash
+        "unknown",  # source
+        str(answer),  # answer
+        "default_tag"  # tags
+    )
+
+    # 执行插入操作
+    questionCAO.database.execute(query, params)
+    questionCAO.database.commit()
+
 # 感觉这一整个函数我写的就是屎一坨，ni bu la
 async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]) -> Sresponse:
     # _temp = {}
@@ -79,8 +135,8 @@ async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]
     allans.answer.bestAnswer = []
     allans.answer.answerKey = []
     allans.answer.answerKeyText = ""
-    allans.answer.answerIndex=[]
-    allans.answer.answerText=""
+    allans.answer.answerIndex = []
+    allans.answer.answerText = ""
     # 接下来写的非常屎，按道理if 嵌套之类的不应该超过三次，到时候再优化吧,留点注释，怕自己都不记得这一坨屎怎么写的了
     for i in _adapter_ans:
         # 先是循环每个适配器的答案
@@ -145,13 +201,15 @@ async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]
     _max = max(answer_counts.values())
     # 出现最多的次数
     allans.answer.bestAnswer = [ans for ans, count in answer_counts.items() if count == _max]
-
+    # 其实这有点问题，假如是问答题，各个题库返回的结果不同，那么_max可能就为一,所有的答案都是最佳答案
     # 把出现最多的认为是最佳答案
     if allans.answer.bestAnswer and _search_request.options:
         #  如果有选项并且最佳答案不为空
+        await local_save(_search_request, allans.answer.bestAnswer)
+        #   保存答案
         for i in allans.answer.bestAnswer:
-            allans.answer.answerKey.append(chr(_search_request.options.index(i)+ 65))
-            allans.answer.answerKeyText += (chr(_search_request.options.index(i)+ 65))
+            allans.answer.answerKey.append(chr(_search_request.options.index(i) + 65))
+            allans.answer.answerKeyText += (chr(_search_request.options.index(i) + 65))
             allans.answer.answerIndex.append(_search_request.options.index(i))
             if allans.answer.answerText == "":
                 allans.answer.answerText = i
