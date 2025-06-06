@@ -64,37 +64,52 @@ async def answer_match_new(_search_request: Srequest, _adapter_ans: list[Adapter
             直接提取最大聚类的众数答案。
             可选增强：对最大聚类内答案做语义相似度过滤（如BERT编码+余弦相似度），剔除低置信样本。
         """
-    allans = Sresponse(question=_search_request.question, options=_search_request.options, type=_search_request.type)
-    allans.answer = A()
+    # allans = Sresponse(question=_search_request.question, options=_search_request.options, type=_search_request.type)
+    # allans.answer = A()
 
     pass
 
-
+# 感觉这一整个函数我写的就是屎一坨，ni bu la
 async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]) -> Sresponse:
     # _temp = {}
-    answer_counts = defaultdict(int)
+    answer_counts = defaultdict(int)  # 没有的默认为0
     allans = Sresponse(question=_search_request.question, options=_search_request.options, type=_search_request.type)
     allans.answer = A()
     allans.answer.allAnswer = []
     allans.answer.bestAnswer = []
-    # 接下来写的非常屎，按道理if 嵌套之类的不应该超过三次，到时候再优化吧
+    allans.answer.answerKey = []
+    allans.answer.answerKeyText = ""
+    allans.answer.answerIndex=[]
+    allans.answer.answerText=""
+    # 接下来写的非常屎，按道理if 嵌套之类的不应该超过三次，到时候再优化吧,留点注释，怕自己都不记得这一坨屎怎么写的了
     for i in _adapter_ans:
+        # 先是循环每个适配器的答案
         if i.type != _search_request.type:
             continue
+            # 类型不对不计入答案
         allans.answer.allAnswer.append(i.answer)
+        # 把这个适配器的答案加入所有答案
+        print("适配器答案:", i.answer)
         for j in i.answer:
+            # 循环适配器中的每个答案
             if i.type in (0, 1):
+                # 如果是单多选
                 if _search_request.options is not None:
+                    # 如果有选项
                     if j in _search_request.options:
+                        # 如果适配器的答案在选项里
                         answer_counts[j] += 1
                 else:
+                    # 没选项直接加字典
                     answer_counts[j] += 1
             elif i.type == 3:
+                #  判断题，适配器返回的答案是判断题TRUE/FALSE_LIST中的才加字典
                 if j in TRUE_LIST:
                     answer_counts["对"] += 1
                 elif j in FALSE_LIST:
                     answer_counts["错"] += 1
             else:
+                #  填空和简答题
                 answer_counts[j] += 1
             # if _search_request.options is not None:
             #     if _search_request.type == 0 or _search_request.type == 1:
@@ -128,18 +143,63 @@ async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]
             #         _temp.setdefault(j, 0)
             #         _temp[j] += 1
     _max = max(answer_counts.values())
+    # 出现最多的次数
     allans.answer.bestAnswer = [ans for ans, count in answer_counts.items() if count == _max]
+
+    # 把出现最多的认为是最佳答案
+    if allans.answer.bestAnswer and _search_request.options:
+        #  如果有选项并且最佳答案不为空
+        for i in allans.answer.bestAnswer:
+            allans.answer.answerKey.append(chr(_search_request.options.index(i)+ 65))
+            allans.answer.answerKeyText += (chr(_search_request.options.index(i)+ 65))
+            allans.answer.answerIndex.append(_search_request.options.index(i))
+            if allans.answer.answerText == "":
+                allans.answer.answerText = i
+            else:
+                allans.answer.answerText += ('#' + i)  # #是分隔符
+
     return allans
 
 
 async def search_use(_search_request: Srequest):
     _ans = []
     _t: list = []
+
+    if "local" in _search_request.use:
+        # 使用适配器，本地local也作为一个适配器
+        # 但特判
+        pass
     valid_adapters = [use for use in _search_request.use if use in AdapterMeta.adapterdict]
     async with asyncio.TaskGroup() as tg:
         for adapter in valid_adapters:
             _t.append(tg.create_task(AdapterMeta.adapterdict[adapter].search(_search_request)))
-    _ans = [i.result() for i in _t]
+    # _ans = [i.result() for i in _t]
+    for i in _t:
+        if i.result().error is None:
+            _ans.append(i.result())
     ans = await answer_match(_search_request, _ans)
     print(ans)
     return _ans
+
+# class A(BaseModel):
+#     """
+#         answerdata
+#     """
+#
+#     answerKey: list[str] | None = None
+#     answerKeyText: str | None = None
+#     answerText: str | None = None
+#     answerIndex: list[int] | None = None
+#     bestAnswer: list[str] | None = None
+#     allAnswer: list[list[str]] | None = None
+#
+#
+# class Sresponse(BaseModel):
+#     """
+#     search response
+#     """
+#     plat: str | None = None
+#     question: str = Field(min_length=1)
+#     options: list[str] | None = None
+#     type: int = Field(0, ge=0, le=4)  # 单选0多选1填空2判断3问答4
+#     answer: A | None = None
