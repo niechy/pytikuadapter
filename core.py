@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import re
 from abc import ABC, abstractmethod, ABCMeta
 import aiohttp
 from models import Srequest, Sresponse, AdapterAns, A
@@ -92,7 +93,7 @@ async def answer_match_new(_search_request: Srequest, _adapter_ans: list[Adapter
 
 async def local_save(_search_request: Srequest, answer:list[str]):
     # 指定要插入的列名，并使用 ? 占位符
-    md5 = hashlib.md5()
+
     query = """
             INSERT INTO tiku (question, \
                               question_text, \
@@ -109,13 +110,22 @@ async def local_save(_search_request: Srequest, answer:list[str]):
             """
 
     # 构造参数列表，其中部分字段设为默认值或占位符
+    md5 = hashlib.md5()
+    md5.update(_search_request.question.encode('utf-8'))
+    question_hash = md5.hexdigest()  # 获取十六进制格式的哈希值
+
+    # 计算 full_hash
+    full_question = _search_request.question + str(sorted(_search_request.options))
+    md5_full = hashlib.md5()
+    md5_full.update(full_question.encode('utf-8'))
+    full_hash = md5_full.hexdigest()
     params = (
         _search_request.question,
-        "1",  # question_text
-        "1",  # question_hash
-        _search_request.type,
+        re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9]', '', _search_request.question),  # question_text
+        question_hash,  # question_hash
+        _search_request.type,#
         str(_search_request.options),  # options
-        "1",  # full_hash
+        full_hash,  # full_hash
         "unknown",  # source
         str(answer),  # answer
         "default_tag"  # tags
