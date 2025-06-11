@@ -21,6 +21,7 @@ class Argument(BaseModel):
        score: Like知识库：匹配结果的最低置信度阈值\n
        query_type: Lemon题库：查询类型枚举值（Qtype）\n
        location: 万能题库：查询需要的源地址 比如chaoxing.com
+       wid cid:AXE题库：AXE题库: 学习通的，wid是workid，cid是courseid
     """
     token: str | None = None
     key: str | None = None
@@ -29,6 +30,8 @@ class Argument(BaseModel):
     score: float | None = None
     query_type: Qtype | None = None
     location: str | None = None
+    wid :str|None = None
+    cid:str|None = None
     # 不够灵活，要是新题库有新的东西得一直加下去
     # 考虑把adapter独有的Argument拆到每个adapter中
     # 投降QAQ，拆了半天总有问题，暂时搁置
