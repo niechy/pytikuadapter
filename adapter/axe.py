@@ -1,5 +1,3 @@
-from pydantic_core.core_schema import with_default_schema
-
 from models import AdapterAns, ErrorType, Srequest
 from core import Adapter
 
