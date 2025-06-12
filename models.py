@@ -16,7 +16,7 @@ class Argument(BaseModel):
     """
        token:密钥 这两个参数其实一样的\n
        key:密钥 只是有些题库用token有些用\n
-       model: Like知识库：指定使用的AI模型名称\n
+       model: Like知识库/硅基流动：指定使用的AI模型名称\n
        search: Like知识库：是否启用模糊搜索模式\n
        score: Like知识库：匹配结果的最低置信度阈值\n
        query_type: Lemon题库：查询类型枚举值（Qtype）\n
