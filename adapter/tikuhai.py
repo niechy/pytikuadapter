@@ -13,7 +13,7 @@ from core import Adapter
 class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
     # 这里写些不动的属性
     # url需要拼接的最好在search中创建一个url，把两部分拼起来，直接拼self.url的话异步可能对其他请求有影响（大概，猜的）
-    url: str = "https://api.tikuhai.com/search"
+    url: str = "htts://api.tikuhai.com/search"
     headers: dict = {"Content-Type": "application/json",
                      "User-Agent": "pytikuhaiAdapter/1.0.0",
                      "v": "1.0.0"}
@@ -30,7 +30,7 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
     delay=1
 
     #继承的基类 make_retry_middleware，用在下面请求添加重试
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
         """
        异步搜索题库获取题目答案
        :param question: Srequest对象

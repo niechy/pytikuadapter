@@ -8,7 +8,7 @@ class Zxseek(Adapter):  # pylint: disable=too-few-public-methods
     FREE = True
     PAY = False
 
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
 
         params={
             "token": "qqqqq",

@@ -6,7 +6,7 @@ class EveryAPI(Adapter):  # pylint: disable=too-few-public-methods
     FREE = True  # 注意普通搜索没搜到时会用高级搜索使用点数
     PAY = True  # EveryAPI有ai，暂未支持，先挖坑
 
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
         # body = {
         #     "question": question.question,
         #     "options": question.options,

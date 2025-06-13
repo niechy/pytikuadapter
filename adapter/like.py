@@ -12,7 +12,7 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
     FREE = False
     PAY = True
 
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
         _options = ""
         for option in question.options:
             _options = _options + option + "\n"

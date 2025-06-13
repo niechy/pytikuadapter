@@ -8,7 +8,7 @@ class Zero(Adapter):  # pylint: disable=too-few-public-methods
     PAY = True
     header = {"Content-Type": "application/json"}
 
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
         params = {
             "token": question.use["Zero"].token,
             "q": question.question

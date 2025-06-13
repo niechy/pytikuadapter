@@ -6,7 +6,7 @@ class Lemon(Adapter):  # pylint: disable=too-few-public-methods
     url: str = "https://api.vanse.top"
     FREE=True
     PAY=True
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
         header = {"Content-Type": "application/json"}
         body = {
             "v": "1.0",

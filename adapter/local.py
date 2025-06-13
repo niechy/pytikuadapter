@@ -10,5 +10,5 @@ class Local(Adapter):  # pylint: disable=too-few-public-methods
     FREE = False
     PAY = True
 
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
         pass

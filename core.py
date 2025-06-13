@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod, ABCMeta
 import aiohttp
 from aiohttp import ClientHandlerType, ClientResponse
 
-from models import Srequest, Sresponse, AdapterAns, A
+from models import Srequest, Sresponse, AdapterAns, A, ErrorType
 from collections import defaultdict
 from sql import CAO
 
@@ -31,8 +31,9 @@ class Adapter(ABC, metaclass=AdapterMeta):
               "N": 13}
     FREE = False  # 有免费接口就设置为True
     PAY = True  # 有付费接口就设置为True
-    retries = 1 #  重试次数
-    delay = 1 #  重试前延迟
+    retries = 1  # 重试次数
+    delay = 1  # 重试前延迟
+
     # 按指数退避延迟
 
     # 暂且默认为需要付费
@@ -50,8 +51,17 @@ class Adapter(ABC, metaclass=AdapterMeta):
 
         return middleware
 
-    @abstractmethod
     async def search(self, question: Srequest):
+        # 兜个底，别让一个adapter崩了整个asyncio.TaskGroup()
+        try:
+            result = await self._search(question)
+            return result
+        except Exception as e:
+            print(f"Adapter {self.__class__.__name__} failed: {e}")
+            return None
+
+    @abstractmethod
+    async def _search(self, question: Srequest):
         pass
 
 
@@ -269,12 +279,14 @@ async def search_use(_search_request: Srequest):
     valid_adapters = [use for use in _search_request.use if use in AdapterMeta.adapterdict]
     async with asyncio.TaskGroup() as tg:
         for adapter in valid_adapters:
-            _t.append(tg.create_task(AdapterMeta.adapterdict[adapter].search(_search_request)))
-    # _ans = [i.result() for i in _t]
+            task = tg.create_task(AdapterMeta.adapterdict[adapter].search(_search_request))
+            _t.append(task)
+
     for i in _t:
-        if i.result().error is None:
+        if i.result() is not None and i.result().error is None:
             _ans.append(i.result())
     ans = await answer_match(_search_request, _ans)
+
     print(ans)
     return ans
 

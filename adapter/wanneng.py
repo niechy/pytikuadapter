@@ -6,7 +6,7 @@ class Wanneng(Adapter):  # pylint: disable=too-few-public-methods
     FREE = True
     PAY = True
 
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
         url: str = "http://lyck6.cn/scriptService/api/autoFreeAnswer"  # 免费的
         body = {
             "question": question.question,

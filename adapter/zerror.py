@@ -8,7 +8,7 @@ class Zerror(Adapter):  # pylint: disable=too-few-public-methods
     PAY = False
 
     TYPE_request = {0: "single", 1: "multiple", 2: "completion", 3: "judgement", 4: "completion"}
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
         body = {
             "title": question.question,
             "options":str(question.options),

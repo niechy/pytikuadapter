@@ -22,7 +22,7 @@ class SiliconFlow(Adapter):
 
         return system_prompt, user_prompt_templates.get(q_type, "题目：{}\n选项：{}")
 
-    async def search(self, question: Srequest):
+    async def _search(self, question: Srequest):
 
         client = AsyncOpenAI(
             api_key=question.use["SiliconFlow"].token,
