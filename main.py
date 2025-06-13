@@ -7,11 +7,15 @@ import adapter  # pylint: disable=unused-import # 别动这行
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+
+    session = aiohttp.ClientSession()
     for _adapter in AdapterMeta.adapterdict.values():
-        _adapter.session = aiohttp.ClientSession()
+        _adapter=_adapter()#  实例化
+        _adapter.session = session
     yield
     for _adapter in AdapterMeta.adapterdict.values():
-        await _adapter.session.close()
+        del _adapter
+    await session.close()
 
 
 app = FastAPI(lifespan=lifespan)

@@ -1,3 +1,4 @@
+# 目前所有处理都在这里处理，未来按需拆分吧
 import asyncio
 import hashlib
 import re
@@ -6,17 +7,17 @@ import aiohttp
 from models import Srequest, Sresponse, AdapterAns, A
 from collections import defaultdict
 from sql import CAO
-questionCAO=CAO()
+
+questionCAO = CAO()
+
+
 class AdapterMeta(ABCMeta):
     adapterdict = {}
 
     def __new__(mcs, name, bases, attrs):
         new_class = super().__new__(mcs, name, bases, attrs)
         if name != 'Adapter':
-            mcs.adapterdict[name] = new_class()
-            # mcs.adapterdict[name].session = aiohttp.ClientSession()
-            # 将全局session改为每个adapter一个session
-            # 方便adapter设置重试以及超时等
+            mcs.adapterdict[name] = new_class
 
             # aiohttp.ClientSession()与close()移到lifespan()中管理
         return new_class
@@ -71,6 +72,7 @@ async def answer_match_new(_search_request: Srequest, _adapter_ans: list[Adapter
 
     pass
 
+
 # DROP TABLE IF EXISTS `tiku`;
 # CREATE TABLE tiku (
 #     id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 自增主键
@@ -91,7 +93,7 @@ async def answer_match_new(_search_request: Srequest, _adapter_ans: list[Adapter
 # CREATE INDEX idx_question_text ON tiku(question_text);  -- 模糊匹配索引
 # CREATE UNIQUE INDEX idx_full_hash ON tiku(full_hash);   -- 哈希唯一性索引
 
-async def local_save(_search_request: Srequest, answer:list[str]):
+async def local_save(_search_request: Srequest, answer: list[str]):
     # 指定要插入的列名，并使用 ? 占位符
 
     query = """
@@ -119,11 +121,18 @@ async def local_save(_search_request: Srequest, answer:list[str]):
     md5_full = hashlib.md5()
     md5_full.update(full_question.encode('utf-8'))
     full_hash = md5_full.hexdigest()
+    _temp = questionCAO.database.execute("SELECT full_hash, options, answer FROM tiku WHERE full_hash = ?", (full_hash,)).fetchall()    # 几种情况，全hash相同，缺答案
+    # 没有选项或者没有答案需要更新
+
+    # if full_hash in _temp and :
+    #     #没有选项或者没有答案需要更新
+    #     pass
+
     params = (
         _search_request.question,
         re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9]', '', _search_request.question),  # question_text
         question_hash,  # question_hash
-        _search_request.type,#
+        _search_request.type,  #
         str(_search_request.options),  # options
         full_hash,  # full_hash
         "unknown",  # source
@@ -134,6 +143,7 @@ async def local_save(_search_request: Srequest, answer:list[str]):
     # 执行插入操作
     questionCAO.database.execute(query, params)
     questionCAO.database.commit()
+
 
 # 感觉这一整个函数我写的就是屎一坨，ni bu la
 async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]) -> Sresponse:
