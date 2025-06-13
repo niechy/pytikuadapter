@@ -1,3 +1,8 @@
+import asyncio
+
+import aiohttp
+from aiohttp import ClientRequest, ClientHandlerType, ClientResponse
+
 from models import AdapterAns, ErrorType, Srequest
 from core import Adapter
 
@@ -16,10 +21,15 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
     """
         FREE (bool): 表示有无免费模式，默认值为False
         PAY (bool): 表示有无付费模式，默认值为True
+        retries(int): 表示重试次数，默认为1
+        delay（float）:表示延迟，按指数退避延迟，默认为1
     """
     FREE = False
     PAY = True
+    retries=1
+    delay=1
 
+    #继承的基类 make_retry_middleware，用在下面请求添加重试
     async def search(self, question: Srequest):
         """
        异步搜索题库获取题目答案
@@ -36,7 +46,7 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
         }
         # params 题库海并没用到
         # params = {"question": question.question}
-        async with self.session.post(url=self.url, headers=self.headers, json=body) as response:
+        async with self.session.post(url=self.url, headers=self.headers, json=body,middlewares=(self.make_retry_middleware(),)) as response:
             # 还有可能是session.get
             ans: AdapterAns = AdapterAns(None, question.type, None)
             # 初始化一个答案对象

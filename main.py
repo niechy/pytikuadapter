@@ -10,11 +10,9 @@ async def lifespan(_app: FastAPI):
 
     session = aiohttp.ClientSession()
     for _adapter in AdapterMeta.adapterdict.values():
-        _adapter=_adapter()#  实例化
+        AdapterMeta.adapterdict[_adapter.__name__] = _adapter()
         _adapter.session = session
     yield
-    for _adapter in AdapterMeta.adapterdict.values():
-        del _adapter
     await session.close()
 
 

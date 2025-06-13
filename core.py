@@ -4,6 +4,8 @@ import hashlib
 import re
 from abc import ABC, abstractmethod, ABCMeta
 import aiohttp
+from aiohttp import ClientHandlerType, ClientResponse
+
 from models import Srequest, Sresponse, AdapterAns, A
 from collections import defaultdict
 from sql import CAO
@@ -29,8 +31,24 @@ class Adapter(ABC, metaclass=AdapterMeta):
               "N": 13}
     FREE = False  # 有免费接口就设置为True
     PAY = True  # 有付费接口就设置为True
+    retries = 1 #  重试次数
+    delay = 1 #  重试前延迟
+    # 按指数退避延迟
 
     # 暂且默认为需要付费
+    @classmethod
+    def make_retry_middleware(cls):
+        async def middleware(req, handler):
+            for i in range(cls.retries + 1):
+                print(i)
+                resp = await handler(req)
+                backoff_delay = cls.delay * (2 ** i)
+                if resp.ok or i == cls.retries or resp.status < 400:
+                    return resp
+                await asyncio.sleep(backoff_delay)
+            return await handler(req)
+
+        return middleware
 
     @abstractmethod
     async def search(self, question: Srequest):
@@ -121,7 +139,8 @@ async def local_save(_search_request: Srequest, answer: list[str]):
     md5_full = hashlib.md5()
     md5_full.update(full_question.encode('utf-8'))
     full_hash = md5_full.hexdigest()
-    _temp = questionCAO.database.execute("SELECT full_hash, options, answer FROM tiku WHERE full_hash = ?", (full_hash,)).fetchall()    # 几种情况，全hash相同，缺答案
+    _temp = questionCAO.database.execute("SELECT full_hash, options, answer FROM tiku WHERE full_hash = ?",
+                                         (full_hash,)).fetchall()  # 几种情况，全hash相同，缺答案
     # 没有选项或者没有答案需要更新
 
     # if full_hash in _temp and :
@@ -225,7 +244,7 @@ async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]
     # 把出现最多的认为是最佳答案
     if allans.answer.bestAnswer and _search_request.options:
         #  如果有选项并且最佳答案不为空
-        await local_save(_search_request, allans.answer.bestAnswer)
+        # await local_save(_search_request, allans.answer.bestAnswer)
         #   保存答案
         for i in allans.answer.bestAnswer:
             allans.answer.answerKey.append(chr(_search_request.options.index(i) + 65))
@@ -257,7 +276,7 @@ async def search_use(_search_request: Srequest):
             _ans.append(i.result())
     ans = await answer_match(_search_request, _ans)
     print(ans)
-    return _ans
+    return ans
 
 # class A(BaseModel):
 #     """
