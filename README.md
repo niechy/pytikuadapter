@@ -12,6 +12,13 @@
 - Lemon题库
 - 万能题库
 - everyapi/GO题/icodef
+- AXE题库
+- Zerror题库
+- Zxseek/知寻题库
+- Zero题库
+- 硅基流动
+
+排名不分先后
 
 Todo（大致按优先级排序）
 
