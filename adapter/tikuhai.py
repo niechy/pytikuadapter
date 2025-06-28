@@ -1,7 +1,7 @@
 import asyncio
 
-import aiohttp
-from aiohttp import ClientRequest, ClientHandlerType, ClientResponse
+from aiohttp import ClientResponse, ClientRequest
+from aiohttp.web_middlewares import middleware
 
 from models import AdapterAns, ErrorType, Srequest
 from core import Adapter
@@ -9,7 +9,14 @@ from core import Adapter
 
 # 欢迎大佬们提PR和issue
 # orz orz orz
-
+async def retry_middleware(
+    req: ClientRequest, handler
+) -> ClientResponse:
+    for _ in range(3):  # Try up to 3 times
+        resp = await handler(req)
+        if resp.ok:
+            return resp
+    return resp
 class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
     # 这里写些不动的属性
     # url需要拼接的最好在search中创建一个url，把两部分拼起来，直接拼self.url的话异步可能对其他请求有影响（大概，猜的）
@@ -26,9 +33,6 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
     """
     FREE = False
     PAY = True
-    retries=1
-    delay=1
-
     #继承的基类 make_retry_middleware，用在下面请求添加重试
     async def _search(self, question: Srequest):
         """
@@ -46,7 +50,7 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
         }
         # params 题库海并没用到
         # params = {"question": question.question}
-        async with self.session.post(url=self.url, headers=self.headers, json=body,middlewares=(self.make_retry_middleware(),)) as response:
+        async with self.session.post(url=self.url, headers=self.headers, json=body,middlewares=retry_middleware) as response:
             # 还有可能是session.get
             ans: AdapterAns = AdapterAns(None, question.type, None)
             # 初始化一个答案对象

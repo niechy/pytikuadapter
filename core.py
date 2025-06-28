@@ -4,7 +4,6 @@ import hashlib
 import re
 from abc import ABC, abstractmethod, ABCMeta
 import aiohttp
-from aiohttp import ClientHandlerType, ClientResponse
 
 from models import Srequest, Sresponse, AdapterAns, A, ErrorType
 from collections import defaultdict
@@ -37,19 +36,6 @@ class Adapter(ABC, metaclass=AdapterMeta):
     # 按指数退避延迟
 
     # 暂且默认为需要付费
-    @classmethod
-    def make_retry_middleware(cls):
-        async def middleware(req, handler):
-            for i in range(cls.retries + 1):
-                print(i)
-                resp = await handler(req)
-                backoff_delay = cls.delay * (2 ** i)
-                if resp.ok or i == cls.retries or resp.status < 400:
-                    return resp
-                await asyncio.sleep(backoff_delay)
-            return await handler(req)
-
-        return middleware
 
     async def search(self, question: Srequest):
         # 兜个底，别让一个adapter崩了整个asyncio.TaskGroup()
