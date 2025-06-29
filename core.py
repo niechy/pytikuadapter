@@ -202,37 +202,6 @@ async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]
             else:
                 #  填空和简答题
                 answer_counts[j] += 1
-            # if _search_request.options is not None:
-            #     if _search_request.type == 0 or _search_request.type == 1:
-            #         # 单选多选大概没问题
-            #         if j in _search_request.options:
-            #             _temp.setdefault(j, 0)
-            #             _temp[j] += 1
-            #     elif _search_request.type == 3:
-            #         # 填空和简答题没选项的
-            #         # 判断题
-            #         # 正确,对,✓,√,v,是,T,t,Y,y,中(doge)
-            #         # 错误,错,✗,叉,×,否,不对,不正确,f,F,n,N,否定,不中(doge)
-            #         if j in ["正确", "对", "✓", "√", "v", "是", "T", "t", "Y", "y", "中"]:
-            #             _temp.setdefault("对", 0)
-            #             _temp["对"] += 1
-            #         elif j in ["错误", "错", "✗", "叉", "×", "否", "不对", "不正确", "f", "F", "n", "N", "否定",
-            #                    "不中"]:
-            #             _temp.setdefault("错", 0)
-            #             _temp["错"] += 1
-            #
-            # else:
-            #     if _search_request.type == 3:
-            #         if j in ["正确", "对", "✓", "√", "v", "是", "T", "t", "Y", "y", "中"]:
-            #             _temp.setdefault("对", 0)
-            #             _temp["对"] += 1
-            #         elif j in ["错误", "错", "✗", "叉", "×", "否", "不对", "不正确", "f", "F", "n", "N", "否定",
-            #                    "不中"]:
-            #             _temp.setdefault("错", 0)
-            #             _temp["错"] += 1
-            #     else:
-            #         _temp.setdefault(j, 0)
-            #         _temp[j] += 1
     _max = max(answer_counts.values())
     # 出现最多的次数
     allans.answer.bestAnswer = [ans for ans, count in answer_counts.items() if count == _max]
@@ -275,26 +244,3 @@ async def search_use(_search_request: Srequest):
 
     print(ans)
     return ans
-
-# class A(BaseModel):
-#     """
-#         answerdata
-#     """
-#
-#     answerKey: list[str] | None = None
-#     answerKeyText: str | None = None
-#     answerText: str | None = None
-#     answerIndex: list[int] | None = None
-#     bestAnswer: list[str] | None = None
-#     allAnswer: list[list[str]] | None = None
-#
-#
-# class Sresponse(BaseModel):
-#     """
-#     search response
-#     """
-#     plat: str | None = None
-#     question: str = Field(min_length=1)
-#     options: list[str] | None = None
-#     type: int = Field(0, ge=0, le=4)  # 单选0多选1填空2判断3问答4
-#     answer: A | None = None
