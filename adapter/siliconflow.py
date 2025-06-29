@@ -28,7 +28,7 @@ class SiliconFlow(Adapter):
             api_key=question.use["SiliconFlow"].token,
             base_url=self.base_url
         )
-        ans: AdapterAns = AdapterAns(None, question.type, None)
+        ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
         try:
             system_prompt, user_prompt = self._generate_prompt(question.type)
             # noinspection PyTypeChecker

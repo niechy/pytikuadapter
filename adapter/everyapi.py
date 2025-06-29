@@ -18,7 +18,7 @@ class EveryAPI(Adapter):  # pylint: disable=too-few-public-methods
         # 咱不用简单模式哈
         async with self.session.get(url=url, params={"simple": 0},
                                     headers={"Authorization": "Bearer "+question.use["EveryAPI"].token}) as response:
-            ans: AdapterAns = AdapterAns(None, question.type, None)
+            ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
             if response.status == 200:
                 req = await response.json()
                 print(req)

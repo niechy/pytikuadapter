@@ -15,7 +15,7 @@ class Zxseek(Adapter):  # pylint: disable=too-few-public-methods
             "q":question.question
         }
         async with self.session.get(url=self.url,params=params) as response:
-            ans: AdapterAns = AdapterAns(None, question.type, None)
+            ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
             ans.answer = []
             if response.status == 200:
                 req = await response.json()

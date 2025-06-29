@@ -31,7 +31,7 @@ class Zero(Adapter):  # pylint: disable=too-few-public-methods
         }
 
         # 初始化响应对象
-        ans: AdapterAns = AdapterAns(None, question.type, None)
+        ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
         ans.answer = []
 
         try:

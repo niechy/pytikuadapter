@@ -17,7 +17,7 @@ class Wanneng(Adapter):  # pylint: disable=too-few-public-methods
         if question.use["Wanneng"].token is not None:
             url = "http://lyck6.cn/scriptService/api/autoAnswer/" + question.use["Wanneng"].token
         async with self.session.post(url=url, json=body) as response:
-            ans: AdapterAns = AdapterAns(None, question.type, None)
+            ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
             if response.status == 200:
                 req = await response.json()
                 print(req)

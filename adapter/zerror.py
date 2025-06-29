@@ -19,7 +19,7 @@ class Zerror(Adapter):  # pylint: disable=too-few-public-methods
                   }
         print(body, header,self.url)
         async with self.session.post(url=self.url, headers=header, json= body) as response:
-            ans: AdapterAns = AdapterAns(None, question.type, None)
+            ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
             ans.answer = []
             if response.status == 200:
                 req = await response.json()

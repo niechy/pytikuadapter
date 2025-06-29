@@ -9,14 +9,6 @@ from core import Adapter
 
 # 欢迎大佬们提PR和issue
 # orz orz orz
-async def retry_middleware(
-    req: ClientRequest, handler
-) -> ClientResponse:
-    for _ in range(3):  # Try up to 3 times
-        resp = await handler(req)
-        if resp.ok:
-            return resp
-    return resp
 class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
     # 这里写些不动的属性
     # url需要拼接的最好在search中创建一个url，把两部分拼起来，直接拼self.url的话异步可能对其他请求有影响（大概，猜的）
@@ -50,9 +42,9 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
         }
         # params 题库海并没用到
         # params = {"question": question.question}
-        async with self.session.post(url=self.url, headers=self.headers, json=body,middlewares=retry_middleware) as response:
+        async with self.session.post(url=self.url, headers=self.headers, json=body,middlewares=(self.retry_middleware,)) as response:
             # 还有可能是session.get
-            ans: AdapterAns = AdapterAns(None, question.type, None)
+            ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
             # 初始化一个答案对象
             # 正常返回ans有东西，error为None；错误返回ans为None，error有东西
             # 错误类型可以去看看ErrorType

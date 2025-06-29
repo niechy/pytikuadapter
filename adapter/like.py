@@ -25,7 +25,7 @@ class Like(Adapter):  # pylint: disable=too-few-public-methods
         if question.use["Like"].search is not None:
             body["search"] = question.use["Like"].search
         async with self.session.post(self.url, headers=self.headers, json=body) as response:
-            ans = AdapterAns(None, question.type, None)
+            ans = AdapterAns(None, question.type, None,self.__class__.__name__)
             if response.status == 200:
                 try:  #
                     req = await response.json()

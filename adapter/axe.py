@@ -26,7 +26,7 @@ class AXE(Adapter):  # pylint: disable=too-few-public-methods
             body["type"]=2
             # 只在body改，不影响返回校验类型
         async with self.session.post(url=self.url, json=body) as response:
-            ans: AdapterAns = AdapterAns(None, question.type, None)
+            ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
             if response.status == 200:
                 req = await response.json()
                 if req["code"] == 1:

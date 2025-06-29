@@ -24,7 +24,7 @@ class Lemon(Adapter):  # pylint: disable=too-few-public-methods
             if question.use["Lemon"].token is not None:
                 header["Authorization"] = "Bearer "+question.use["Lemon"].token
         async with self.session.post(url=url,headers=header, json=body) as response:
-            ans: AdapterAns = AdapterAns(None, question.type, None)
+            ans: AdapterAns = AdapterAns(None, question.type, None,self.__class__.__name__)
             if response.status == 200:
                 req = await response.json()
                 print(req)

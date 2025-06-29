@@ -23,7 +23,7 @@ class Enncy(Adapter):  # pylint: disable=too-few-public-methods
         }
 
         async with self.session.get(url=self.url, params=params) as response:
-            ans = AdapterAns(None, question.type, None)
+            ans = AdapterAns(None, question.type, None,self.__class__.__name__)
             req = await response.json()
             if response.status == 200:
                 if req["code"] == 1:

@@ -66,14 +66,16 @@ class ErrorType(str, Enum):
 
 
 class AdapterAns:
+    adapter: str
     answer: list[str] | None
     type: int | None
     error: ErrorType | None = None
 
-    def __init__(self, ans, anstype, error):
+    def __init__(self, ans, anstype, error, adapter):
         self.answer = ans
         self.type = anstype
         self.error = error
+        self.adapter = adapter
 
     def __setitem__(self, key, value):
         self.__dict__[key] = value

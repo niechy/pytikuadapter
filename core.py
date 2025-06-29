@@ -180,7 +180,7 @@ async def answer_match(_search_request: Srequest, _adapter_ans: list[AdapterAns]
             # 类型不对不计入答案
         allans.answer.allAnswer.append(i.answer)
         # 把这个适配器的答案加入所有答案
-        print("适配器答案:", i.answer)
+        print(i.adapter,"适配器答案:", i.answer)
         for j in i.answer:
             # 循环适配器中的每个答案
             if i.type in (0, 1):
