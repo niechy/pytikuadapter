@@ -63,6 +63,8 @@ class ErrorType(str, Enum):
     PARSER_JSON = "解析JSON错误"
     TOKEN_REQUIRED = "需要提供TOKEN"
     LOW_CONFIDENCE_SCORE = "答案置信分数过低"
+    UNKNOWN_ERROR = "未知错误"
+    NETWORK_ERROR = "网络错误"
 
 
 class AdapterAns:
