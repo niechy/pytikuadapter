@@ -20,12 +20,26 @@ class Tikuhai(Adapter):  # pylint: disable=too-few-public-methods
     """
         FREE (bool): 表示有无免费模式，默认值为False
         PAY (bool): 表示有无付费模式，默认值为True
-        retries(int): 表示重试次数，默认为1
-        delay（float）:表示延迟，按指数退避延迟，默认为1
     """
     FREE = False
     PAY = True
-    #继承的基类 make_retry_middleware，用在下面请求添加重试
+
+    @staticmethod
+    async def retry_middleware(
+            req: ClientRequest, handler
+    ) -> ClientResponse:
+        """
+        重试中间件
+        :param req: ClientRequest对象
+        :param handler: 请求处理函数
+        :return: ClientResponse对象
+        """
+        for _ in range(3):  # Try up to 3 times
+            resp = await handler(req)
+            if resp.ok:
+                break
+            await asyncio.sleep(1*(_ ** 2))
+        return resp
     async def _search(self, question: Srequest):
         """
        异步搜索题库获取题目答案
