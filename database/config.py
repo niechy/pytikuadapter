@@ -1,0 +1,222 @@
+"""
+数据库配置和连接管理
+
+提供PostgreSQL数据库的连接配置和会话管理。
+使用异步SQLAlchemy支持高并发场景。
+"""
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
+from typing import Optional, AsyncGenerator
+import os
+from contextlib import asynccontextmanager
+
+from .models import Base
+from dotenv import load_dotenv
+
+load_dotenv()  # 加载 .env 文件
+
+
+class DatabaseConfig:
+    """
+    数据库配置类
+
+    从环境变量读取数据库连接信息，提供默认值。
+    支持通过环境变量配置：
+    - DB_HOST: 数据库主机地址
+    - DB_PORT: 数据库端口
+    - DB_USER: 数据库用户名
+    - DB_PASSWORD: 数据库密码
+    - DB_NAME: 数据库名称
+    """
+
+    def __init__(self):
+        # 从环境变量读取配置，提供默认值
+        self.host = os.getenv("DB_HOST", "localhost")
+        self.port = os.getenv("DB_PORT", "5432")
+        self.user = os.getenv("DB_USER", "postgres")
+        self.password = os.getenv("DB_PASSWORD", "postgres")
+        self.database = os.getenv("DB_NAME", "tikuadapter")
+
+        # 连接池配置
+        self.pool_size = int(os.getenv("DB_POOL_SIZE", "10"))
+        self.max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "20"))
+
+        # 是否启用SQL日志（开发环境可以开启）
+        self.echo = os.getenv("DB_ECHO", "false").lower() == "true"
+
+    def get_database_url(self) -> str:
+        """
+        构造异步PostgreSQL连接URL
+
+        Returns:
+            异步数据库连接字符串
+
+        Example:
+            postgresql+asyncpg://user:password@localhost:5432/tikuadapter
+        """
+        return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+
+
+class DatabaseManager:
+    """
+    数据库管理器
+
+    负责数据库引擎和会话的创建、管理和销毁。
+    使用单例模式确保全局只有一个数据库连接池。
+    """
+
+    _instance: Optional['DatabaseManager'] = None
+    _engine = None
+    _session_factory = None
+
+    def __new__(cls):
+        """单例模式：确保只创建一个实例"""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        """初始化配置（只在第一次创建时执行）"""
+        if not hasattr(self, '_initialized'):
+            self.config = DatabaseConfig()
+            self._initialized = True
+
+    async def init_engine(self):
+        """
+        初始化数据库引擎
+
+        创建异步数据库引擎和会话工厂。
+        应该在应用启动时调用一次。
+        """
+        if self._engine is None:
+            # 创建异步引擎
+            self._engine = create_async_engine(
+                self.config.get_database_url(),
+                echo=self.config.echo,  # 是否打印SQL语句
+                pool_size=self.config.pool_size,  # 连接池大小
+                max_overflow=self.config.max_overflow,  # 最大溢出连接数
+                pool_pre_ping=True,  # 连接前检查连接是否有效
+                pool_recycle=3600,  # 连接回收时间（秒）
+            )
+
+            # 创建会话工厂
+            self._session_factory = async_sessionmaker(
+                self._engine,
+                class_=AsyncSession,
+                expire_on_commit=False,  # 提交后不过期对象
+            )
+
+            print(f"数据库引擎已初始化: {self.config.host}:{self.config.port}/{self.config.database}")
+
+    async def create_tables(self):
+        """
+        创建所有数据库表
+
+        根据models.py中定义的模型创建表结构。
+        如果表已存在则跳过。
+        应该在应用首次部署或数据库迁移时调用。
+        """
+        if self._engine is None:
+            await self.init_engine()
+
+        async with self._engine.begin() as conn:
+            # 创建所有表（如果不存在）
+            await conn.run_sync(Base.metadata.create_all)
+            print("数据库表创建完成")
+
+    async def drop_tables(self):
+        """
+        删除所有数据库表
+
+        警告：这会删除所有数据！仅用于开发/测试环境。
+        """
+        if self._engine is None:
+            await self.init_engine()
+
+        async with self._engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            print("数据库表已删除")
+
+    @asynccontextmanager
+    async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
+        """
+        获取数据库会话（上下文管理器）
+
+        使用方式：
+            async with db_manager.get_session() as session:
+                # 执行数据库操作
+                result = await session.execute(query)
+                await session.commit()
+
+        Yields:
+            AsyncSession: 数据库会话对象
+
+        Raises:
+            Exception: 数据库操作异常会自动回滚
+        """
+        if self._session_factory is None:
+            await self.init_engine()
+
+        session = self._session_factory()
+        try:
+            yield session
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            raise e
+        finally:
+            await session.close()
+
+    async def close(self):
+        """
+        关闭数据库连接
+
+        应该在应用关闭时调用，释放所有数据库连接。
+        """
+        if self._engine is not None:
+            await self._engine.dispose()
+            self._engine = None
+            self._session_factory = None
+            print("数据库连接已关闭")
+
+
+# 全局数据库管理器实例
+db_manager = DatabaseManager()
+
+
+async def init_database():
+    """
+    初始化数据库
+
+    应该在应用启动时调用。
+    包括：初始化引擎、创建表结构。
+    """
+    await db_manager.init_engine()
+    await db_manager.create_tables()
+
+
+async def close_database():
+    """
+    关闭数据库连接
+
+    应该在应用关闭时调用。
+    """
+    await db_manager.close()
+
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    获取数据库会话的便捷函数
+
+    可以作为FastAPI的依赖注入使用：
+        @app.get("/")
+        async def handler(session: AsyncSession = Depends(get_db_session)):
+            # 使用session进行数据库操作
+            pass
+
+    Yields:
+        AsyncSession: 数据库会话对象
+    """
+    async with db_manager.get_session() as session:
+        yield session

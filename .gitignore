@@ -93,6 +93,11 @@ ipython_config.py
 #   having no cross-platform support, pipenv may install dependencies that don't work, or not
 #   install all needed dependencies.
 #Pipfile.lock
+# 忽略 data,idea 文件夹
+.idea/
+data/
+# 若需要保留占位文件以跟踪空目录，可取消注释下一行并添加 .gitkeep
+# !data/.gitkeep
 
 # UV
 #   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
@@ -179,3 +184,5 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/poetry.lock
+/.claude/
