@@ -27,7 +27,7 @@ class A(BaseModel):#每个适配器返回答案
 
     # 错误信息字段
     success: bool = Field(True, description="是否成功获取答案")
-    error_type: Optional[str] = Field(None, description="错误类型：cache_miss(缓存未命中), api_error(API错误), network_error(网络错误), config_error(配置错误), unknown(未知错误)")
+    error_type: Optional[str] = Field(None, description="错误类型：cache_miss(缓存未命中), api_error(API错误), network_error(网络错误), config_error(配置错误), match_error(答案匹配失败), unknown(未知错误)")
     error_message: Optional[str] = Field(None, description="错误详细信息")
 
 class UnifiedAnswer(BaseModel):
