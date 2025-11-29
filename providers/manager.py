@@ -15,6 +15,7 @@ class Providersbase(ABC):
 
     name: str = ""
     session: Optional[ClientSession] = None  # 全局session，需异步初始化
+    CACHEABLE: bool = True  # 是否将答案存入缓存，默认True
 
     @abstractmethod
     class PParameter(BaseModel):

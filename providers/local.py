@@ -25,6 +25,7 @@ class Local(Providersbase):
     home = "本地缓存"
     FREE = True
     PAY = False
+    CACHEABLE = False  # 本地缓存适配器的答案不需要再存入缓存
 
     class Configs(BaseModel):
         """Local适配器的配置参数"""

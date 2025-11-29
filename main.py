@@ -161,8 +161,10 @@ async def search(
             # 正常返回的 A 对象
             if res.success:
                 log.debug(f"成功 [{res.provider}]: {res.choice or res.text or res.judgement}")
-                # 只有成功的答案才写入缓存
-                provider_answer_pairs.append((provider, res))
+                # 只有成功的答案且适配器允许缓存才写入缓存
+                adapter = mgr.get_adapter_achieve(provider.name)
+                if adapter and getattr(adapter, 'CACHEABLE', True):
+                    provider_answer_pairs.append((provider, res))
             else:
                 log.debug(f"失败 [{res.provider}]: {res.error_type} - {res.error_message}")
 
