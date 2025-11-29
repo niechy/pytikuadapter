@@ -12,6 +12,7 @@ from core import construct_res
 import uvicorn
 from database import init_database, close_database, get_db_session
 from database.cache_service import query_cache_batch, save_cache_async
+from database.auth_service import is_auth_enabled, verify_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from logger import get_logger
 
@@ -51,11 +52,39 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-def get_api_key(authorization: str = Header(...)):
-    if not authorization.startswith("Bearer "):
+def get_api_key(authorization: str = Header(None)):
+    """
+    从请求头中提取API Key
+
+    如果鉴权未启用，返回None
+    如果鉴权启用但未提供token，抛出401异常
+    """
+    if not is_auth_enabled():
+        return None
+
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization header")
     token = authorization.split(" ", 1)[1]
     return token
+
+
+async def verify_api_key(
+    api_key: str = Depends(get_api_key),
+    session: AsyncSession = Depends(get_db_session)
+):
+    """
+    验证API Key是否有效
+
+    如果鉴权未启用，直接通过
+    如果鉴权启用，验证token是否存在于数据库中
+    """
+    if not is_auth_enabled():
+        return None
+
+    if not await verify_token(session, api_key):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    return api_key
 
 
 MAX_CONCURRENT = 20
@@ -72,7 +101,7 @@ async def _call_adapter(ad, question, provider, sem: asyncio.Semaphore):
 @app.post("/v1/adapter-service/search")
 async def search(
     _search_request: QuestionRequest,
-    api_key: str = Depends(get_api_key),
+    _api_key: str = Depends(verify_api_key),
     session: AsyncSession = Depends(get_db_session)
 ):
     """

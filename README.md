@@ -2,6 +2,8 @@
 
 [tikuadapter](https://github.com/DokiDoki1103/tikuAdapter) 的 Python 版，从自己的角度加了些东西。
 
+目前用ai写出框架，细节自己修改。
+
 ## 快速开始
 
 ### 环境要求
@@ -51,6 +53,8 @@ DB_ECHO=false
 LOG_LEVEL=INFO
 # 日志保留天数
 LOG_BACKUP_DAYS=30
+# 是否需要鉴权
+AUTH_ENABLED=false
 ```
 
 ### 运行
@@ -189,7 +193,7 @@ pytikuadapter/
 - [x] 异常处理
 - [x] PostgreSQL 缓存
 - [x] 答案模糊匹配
-- [ ] 鉴权系统
+- [x] 鉴权
 - [ ] WebUI
 - [ ] 更多题库适配器(持续添加中)
 
@@ -202,6 +206,7 @@ pytikuadapter/
 作者是一名非计算机系大学生，代码纯菜，边写边学的，欢迎吐槽、issue，PR。
 
 - [tikuadapter](https://github.com/DokiDoki1103/tikuAdapter) 原版项目
+- 玛丽
 - DeepSeek、Grok、Claude 等大模型
 
 ## License

@@ -108,6 +108,26 @@ class Answer(Base):
         return f"<Answer(id={self.id}, type={self.type}, choice={self.choice}, judgement={self.judgement})>"
 
 
+class AuthToken(Base):
+    """
+    鉴权Token表
+
+    存储API访问令牌，用于接口鉴权。
+    """
+    __tablename__ = 'auth_tokens'
+
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='Token ID')
+
+    # Token值
+    token = Column(String(255), nullable=False, unique=True, index=True, comment='API访问令牌')
+
+    # 创建时间
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+
+    def __repr__(self):
+        return f"<AuthToken(id={self.id}, token='{self.token[:8]}...')>"
+
+
 class QuestionProviderAnswer(Base):
     """
     题目-Provider-答案关联表
