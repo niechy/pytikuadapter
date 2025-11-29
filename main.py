@@ -121,6 +121,7 @@ async def search(
     # 3. 并发查询没有缓存的provider
     sem = asyncio.Semaphore(MAX_CONCURRENT)
     tasks = []
+    valid_providers = []  # 实际创建了task的provider
 
     for provider in providers_to_query:
         adapter = mgr.get_adapter_achieve(provider.name)
@@ -128,6 +129,7 @@ async def search(
             log.warning(f"未找到适配器 {provider.name}")
             continue
 
+        valid_providers.append(provider)
         # create_task 立即调度，但实际并发由 sem 控制
         tasks.append(
             asyncio.create_task(
@@ -143,7 +145,7 @@ async def search(
     provider_answer_pairs = []  # 用于异步写入缓存的数据
 
     for i, res in enumerate(results):
-        provider = providers_to_query[i]
+        provider = valid_providers[i]
 
         if isinstance(res, Exception):
             # 发生了未捕获的异常（理论上不应该发生，因为provider内部应该捕获所有异常）
