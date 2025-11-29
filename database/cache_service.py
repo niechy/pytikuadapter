@@ -22,6 +22,9 @@ import asyncio
 from .models import Question, Answer, QuestionProviderAnswer
 from .utils import normalize_text, normalize_options, compute_config_hash
 from model import QuestionContent, Provider, A
+from logger import get_logger
+
+log = get_logger("cache")
 
 
 class CacheService:
@@ -383,4 +386,4 @@ async def save_cache_async(
             await cache_service.batch_save_answers(query, provider_answers)
     except Exception as e:
         # 缓存写入失败不应该影响主流程，只记录日志
-        print(f"缓存写入失败: {e}")
+        log.error(f"缓存写入失败: {e}")

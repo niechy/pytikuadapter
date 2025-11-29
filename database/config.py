@@ -6,13 +6,15 @@
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import NullPool
 from typing import Optional, AsyncGenerator
 import os
 from contextlib import asynccontextmanager
 
 from .models import Base
 from dotenv import load_dotenv
+from logger import get_logger
+
+log = get_logger("database")
 
 load_dotenv()  # 加载 .env 文件
 
@@ -107,7 +109,7 @@ class DatabaseManager:
                 expire_on_commit=False,  # 提交后不过期对象
             )
 
-            print(f"数据库引擎已初始化: {self.config.host}:{self.config.port}/{self.config.database}")
+            log.info(f"数据库引擎已初始化: {self.config.host}:{self.config.port}/{self.config.database}")
 
     async def create_tables(self):
         """
@@ -123,7 +125,7 @@ class DatabaseManager:
         async with self._engine.begin() as conn:
             # 创建所有表（如果不存在）
             await conn.run_sync(Base.metadata.create_all)
-            print("数据库表创建完成")
+            log.info("数据库表创建完成")
 
     async def drop_tables(self):
         """
@@ -136,7 +138,7 @@ class DatabaseManager:
 
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
-            print("数据库表已删除")
+            log.warning("数据库表已删除")
 
     @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
@@ -178,7 +180,7 @@ class DatabaseManager:
             await self._engine.dispose()
             self._engine = None
             self._session_factory = None
-            print("数据库连接已关闭")
+            log.info("数据库连接已关闭")
 
 
 # 全局数据库管理器实例

@@ -4,6 +4,9 @@ from pydantic import BaseModel
 from aiohttp import ClientSession
 from model import QuestionContent,Provider,QuestionRequest
 from abc import ABC, abstractmethod
+from logger import get_logger
+
+log = get_logger("providers")
 
 
 
@@ -26,7 +29,7 @@ class Providersbase(ABC):
         try:
             return await self._search(query=query, provider=provider)
         except Exception as e:
-            print(f"Adapter {self.name} internal error: {e}")
+            log.error(f"Adapter {self.name} internal error: {e}")
             raise
     @classmethod
     async def init_session(cls):

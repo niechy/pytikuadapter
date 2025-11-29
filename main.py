@@ -12,6 +12,9 @@ import uvicorn
 from database import init_database, close_database, get_db_session
 from database.cache_service import query_cache_batch, save_cache_async
 from sqlalchemy.ext.asyncio import AsyncSession
+from logger import get_logger
+
+log = get_logger("main")
 
 mgr = manager.ProvidersManager()
 
@@ -30,18 +33,18 @@ async def lifespan(_app: FastAPI):
     1. 关闭aiohttp会话
     2. 关闭数据库连接
     """
-    print("正在初始化数据库...")
+    log.info("正在初始化数据库...")
     await init_database()
-    print("数据库初始化完成")
+    log.info("数据库初始化完成")
 
-    print("当前适配器列表：", mgr.available_plugins())
+    log.info(f"当前适配器列表: {mgr.available_plugins()}")
     await manager.Providersbase.init_session()
 
     yield
 
     await manager.Providersbase.close_session()
     await close_database()
-    print("应用已关闭")
+    log.info("应用已关闭")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -108,7 +111,7 @@ async def search(
 
         if cached_answer is not None:
             # 有缓存，直接使用
-            print(f"缓存命中: {provider.name}")
+            log.debug(f"缓存命中: {provider.name}")
             answers_from_cache.append(cached_answer)
         else:
             # 无缓存，需要查询
@@ -121,7 +124,7 @@ async def search(
     for provider in providers_to_query:
         adapter = mgr.get_adapter_achieve(provider.name)
         if adapter is None:
-            print(f"警告: 未找到适配器 {provider.name}")
+            log.warning(f"未找到适配器 {provider.name}")
             continue
 
         # create_task 立即调度，但实际并发由 sem 控制
@@ -143,7 +146,7 @@ async def search(
 
         if isinstance(res, Exception):
             # 发生了未捕获的异常（理论上不应该发生，因为provider内部应该捕获所有异常）
-            print(f"⚠️  未捕获异常 [{provider.name}]: {type(res).__name__}: {res}")
+            log.error(f"未捕获异常 [{provider.name}]: {type(res).__name__}: {res}")
             # 创建一个失败的答案对象
             error_answer = A(
                 provider=provider.name,
@@ -156,11 +159,11 @@ async def search(
         else:
             # 正常返回的 A 对象
             if res.success:
-                print(f"✅ 成功 [{res.provider}]: {res.choice or res.text or res.judgement}")
+                log.debug(f"成功 [{res.provider}]: {res.choice or res.text or res.judgement}")
                 # 只有成功的答案才写入缓存
                 provider_answer_pairs.append((provider, res))
             else:
-                print(f"❌ 失败 [{res.provider}]: {res.error_type} - {res.error_message}")
+                log.debug(f"失败 [{res.provider}]: {res.error_type} - {res.error_message}")
 
             answers_from_query.append(res)
 
@@ -177,15 +180,15 @@ async def search(
     result = construct_res(_search_request.query, all_answers)
 
     # 输出统计信息
-    print(f"\n📊 查询统计:")
-    print(f"   总provider数: {result.total_providers}")
-    print(f"   ✅ 成功: {result.successful_providers}")
-    print(f"   ❌ 失败: {result.failed_providers}")
-    print(f"   最终答案: {result.unified_answer.answerKeyText or result.unified_answer.answerText or '无'}")
+    log.info(
+        f"查询统计: 总数={result.total_providers}, "
+        f"成功={result.successful_providers}, 失败={result.failed_providers}, "
+        f"答案={result.unified_answer.answerKeyText or result.unified_answer.answerText or '无'}"
+    )
 
     return result
 
 
 if __name__ == '__main__':
-    uvicorn.run('demo:app', host="127.0.0.1", port=8060, log_level='info')
+    uvicorn.run('main:app', host="127.0.0.1", port=8060, log_level='info')
     # uvicorn demo:app --host 0.0.0.0 --port 8060 --workers 4 --log-level info
