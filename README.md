@@ -1,135 +1,209 @@
 # pytikuadapter
-[tikuadapter](https://github.com/DokiDoki1103/tikuAdapter)的python版，从自己的角度加了些东西
 
-现在还是毛胚，目前简单实现了查询多题库的功能
+[tikuadapter](https://github.com/DokiDoki1103/tikuAdapter) 的 Python 版，从自己的角度加了些东西。
 
-如果想要加入更多题库，可以看看adapter/like.py
+## 快速开始
 
-支持的题库：
-- Like知识库
+### 环境要求
 
+- Python 3.12+
+- PostgreSQL（用于答案缓存）
 
-阿巴阿巴重新写了，下面的还没写
-- 言溪题库
-- 题库海题库
-- Lemon题库
-- 万能题库
-- everyapi/GO题/icodef
-- AXE题库
-- Zerror题库
-- Zxseek/知寻题库
-- Zero题库
-- 硅基流动
+### 安装
 
-排名不分先后
+```bash
+# 克隆项目
+git clone https://github.com/niechy/pytikuadapter.git
+cd pytikuadapter
 
-Todo（大致按优先级排序）
+# 安装依赖
+poetry install
+```
 
-- [x] 更多网络题库（持续增加）
-- [x] 返回统一处理
-- [ ] 异常处理
-- [ ] 本地缓存
-- [ ] 鉴权
-- [ ] WebUI
-- [ ] 文件题库解析
+### 配置数据库
 
+1. 创建 PostgreSQL 数据库：
 
-POST http://localhost:8000/v1/adapter-service/search
+```bash
+psql -U postgres -c "CREATE DATABASE tikuadapter;"
+```
 
-headers
+2. 配置环境变量（项目中有example）：
+```
+# 复制此文件为 .env 并填入实际配置
+
+# PostgreSQL数据库配置
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=your_password_here
+DB_NAME=tikuadapter
+
+# 数据库连接池配置
+DB_POOL_SIZE=10
+DB_MAX_OVERFLOW=20
+
+# 是否启用SQL日志（开发环境可以设置为true）
+DB_ECHO=false
+
+# 日志配置
+# 日志级别：DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_LEVEL=INFO
+# 日志保留天数
+LOG_BACKUP_DAYS=30
+```
+
+### 运行
+
+```bash
+python main.py
+```
+
+## 支持的题库（排名不分先后）
+
+| 题库 | 名称 | 免费 | 付费 |
+|------|------|------|------|
+| Like知识库 | `Like知识库` | - | ✓ |
+| 言溪题库 | `言溪题库` | ✓ | ✓ |
+| 万能题库 | `万能题库` | ✓ | ✓ |
+| everyAPI | `everyAPI题库` | ✓ | ✓ |
+
+## API 使用
+
+### 请求
+
+```
+POST http://localhost:8060/v1/adapter-service/search
+```
+
+**Headers:**
 ```
 Content-Type: application/json
-Authorization: Bearer your_token_here
+Authorization: Bearer your_token
 ```
 
-请求体
-
+**Body:**
 ```json
 {
-  "query":{
-  "content": "毛泽东思想形成的时代背景是( )",
-  "options": [
-    "帝国主义战争与无产阶级革命成为时代主题",
-    "和平与发展成为时代主题", 
-    "世界多极化成为时代主题",
-    "经济全球化成为时代主题"
-  ],
-  "type": 0
+  "query": {
+    "content": "毛泽东思想形成的时代背景是( )",
+    "options": [
+      "帝国主义战争与无产阶级革命成为时代主题",
+      "和平与发展成为时代主题",
+      "世界多极化成为时代主题",
+      "经济全球化成为时代主题"
+    ],
+    "type": 0
   },
   "providers": [
     {
-      "name": "Tikuhai",
-      "config": {
-        "api_key": "*****"
-      }
-    },
-    {
-      "name": "Enncy",
-      "config": {
-        "token": "*******"
-      }
-    },
-    {
       "name": "Like知识库",
       "config": {
-        "key": "**************",
+        "key": "your_api_key",
         "model": "deepseek-v3.2"
+      }
+    },
+    {
+      "name": "万能题库",
+      "config": {
+        "token": "your_token"
+      }
+    },
+    {
+      "name": "言溪题库",
+      "config": {
+        "token": "your_token"
       }
     }
   ]
 }
 ```
-与原版区别还是有点，不破不立嘛（大概）
 
-整个分为两块query和providers
+### 题目类型
 
-query部分是题目相关，providers部分是题库相关
+| type | 类型 |
+|------|------|
+| 0 | 单选题 |
+| 1 | 多选题 |
+| 2 | 填空题 |
+| 3 | 判断题 |
+| 4 | 问答题 |
 
-后续可能再加一块，重试次数，总超时时间，以及聚合策略之类
+### 响应
 
-响应体感觉还会改，目前是这样的
 ```json
 {
-    "query": {
-        "content": "毛泽东思想形成的时代背景是( )",
-        "options": [
-            "帝国主义战争与无产阶级革命成为时代主题",
-            "和平与发展成为时代主题",
-            "世界多极化成为时代主题",
-            "经济全球化成为时代主题"
-        ],
-        "type": 0
-    },
-    "unified_answer": {
-        "answerKey": [
-            "A"
-        ],
-        "answerKeyText": "A",
-        "answerIndex": [
-            0
-        ],
-        "answerText": "帝国主义战争与无产阶级革命成为时代主题",
-        "bestAnswer": [
-            "帝国主义战争与无产阶级革命成为时代主题"
-        ]
-    },
-    "provider_answer": [
-        {
-            "provider": "Like知识库",
-            "type": 0,
-            "choice": [
-                "A"
-            ],
-            "judgement": null,
-            "text": null
-        }
-    ],
-    "successful_providers": 1
+  "query": {
+    "content": "毛泽东思想形成的时代背景是( )",
+    "options": ["..."],
+    "type": 0
+  },
+  "unified_answer": {
+    "answerKey": ["A"],
+    "answerKeyText": "A",
+    "answerIndex": [0],
+    "answerText": "帝国主义战争与无产阶级革命成为时代主题",
+    "bestAnswer": ["帝国主义战争与无产阶级革命成为时代主题"]
+  },
+  "provider_answers": [
+    {
+      "provider": "Like知识库",
+      "type": 0,
+      "choice": ["A"],
+      "success": true
+    }
+  ],
+  "successful_providers": 3,
+  "failed_providers": 0,
+  "total_providers": 3
 }
 ```
 
+## 项目结构
+
+```
+pytikuadapter/
+├── main.py              # FastAPI 入口
+├── model.py             # 数据模型
+├── core.py              # 答案聚合逻辑
+├── providers/           # 题库适配器
+│   ├── manager.py       # 适配器基类和注册
+│   ├── matcher.py       # 答案匹配工具
+│   ├── like.py          # Like知识库
+│   ├── enncy.py         # 言溪题库
+│   ├── wanneng.py       # 万能题库
+│   └── everyapi.py      # everyAPI
+├── database/            # 数据库缓存
+│   ├── models.py        # 表结构
+│   ├── cache_service.py # 缓存服务
+│   └── utils.py         # 工具函数
+└── docs/                # 文档
+    ├── DATABASE.md      # 数据库设计
+    └── provider-development.md  # 适配器开发指南
+```
+
+## Todo
+
+- [x] 多题库并发查询
+- [x] 统一返回格式
+- [x] 异常处理
+- [x] PostgreSQL 缓存
+- [x] 答案模糊匹配
+- [ ] 鉴权系统
+- [ ] WebUI
+- [ ] 更多题库适配器(持续添加中)
+
+## 开发
+
+添加新的题库适配器，参考 [适配器开发指南](docs/provider-development.md)。
+
+## 致谢
+
 作者是一名非计算机系大学生，代码纯菜，边写边学的，欢迎吐槽、issue，PR。
 
-同时感谢一众大模型Deepseek，Grok，阿里灵码
+- [tikuadapter](https://github.com/DokiDoki1103/tikuAdapter) 原版项目
+- DeepSeek、Grok、Claude 等大模型
 
-License会在项目完善点后再弄
+## License
+
+待定
