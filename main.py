@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from aiohttp import ClientResponseError
 from fastapi import FastAPI, Header, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from model import QuestionRequest, Res, Provider, A
@@ -186,7 +187,7 @@ async def search(
         f"答案={result.unified_answer.answerKeyText or result.unified_answer.answerText or '无'}"
     )
 
-    return result
+    return JSONResponse(content=result.model_dump(exclude_none=True))
 
 
 if __name__ == '__main__':
