@@ -51,14 +51,31 @@ def normalize_text(text: str) -> str:
     return text
 
 
+def strip_option_prefix(text: str) -> str:
+    """
+    去除选项前缀（A、B、C、D等）
+
+    Example:
+        >>> strip_option_prefix("A. 你好")
+        "你好"
+        >>> strip_option_prefix("A、你好")
+        "你好"
+        >>> strip_option_prefix("A你好")
+        "你好"
+    """
+    # 匹配常见的选项前缀格式：A. A、A: A） A) 或单独的 A
+    # 支持大小写字母 A-Z
+    return re.sub(r'^[A-Za-z][.、:：）)]\s*', '', text.strip())
+
+
 def normalize_options(options: Optional[List[str]]) -> Optional[List[str]]:
     """
     归一化选项列表
 
     处理步骤：
-    1. 对每个选项进行文本归一化
-    2. 按归一化后的内容排序（解决选项顺序变化问题）
-    3. 返回排序后的归一化选项列表
+    1. 去除选项前缀（A、B、C、D等）
+    2. 对每个选项进行文本归一化
+    3. 按归一化后的内容排序（解决选项顺序和前缀变化问题）
 
     Args:
         options: 原始选项列表
@@ -68,15 +85,15 @@ def normalize_options(options: Optional[List[str]]) -> Optional[List[str]]:
 
     Example:
         >>> normalize_options(["A. 你好", "B. 你坏"])
-        ["a你好", "b你坏"]
-        >>> normalize_options(["B. 你坏", "A. 你好"])  # 顺序变化
-        ["a你好", "b你坏"]  # 排序后结果相同
+        ["你好", "你坏"]
+        >>> normalize_options(["A. 你坏", "B. 你好"])  # 内容互换
+        ["你好", "你坏"]  # 排序后结果相同
     """
     if not options:
         return None
 
-    # 归一化每个选项
-    normalized = [normalize_text(opt) for opt in options]
+    # 去除前缀 + 归一化每个选项
+    normalized = [normalize_text(strip_option_prefix(opt)) for opt in options]
 
     # 排序（确保选项顺序一致）
     normalized.sort()
