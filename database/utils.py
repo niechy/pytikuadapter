@@ -10,9 +10,7 @@
 """
 
 import re
-import hashlib
-import json
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 
 def normalize_text(text: str) -> str:
@@ -84,30 +82,6 @@ def normalize_options(options: Optional[List[str]]) -> Optional[List[str]]:
     normalized.sort()
 
     return normalized
-
-
-def compute_config_hash(config: Dict[str, Any]) -> str:
-    """
-    计算provider配置的哈希值
-
-    用于区分同一provider使用不同配置时的缓存。
-    例如：Like知识库使用不同的llm_model可能返回不同答案。
-
-    Args:
-        config: provider配置字典
-
-    Returns:
-        配置的MD5哈希值（16进制字符串）
-
-    Example:
-        >>> compute_config_hash({"key": "abc", "model": "gpt-4"})
-        "5d41402abc4b2a76b9719d911017c592"
-    """
-    # 将配置转为排序后的JSON字符串（确保顺序一致）
-    config_str = json.dumps(config, sort_keys=True, ensure_ascii=False)
-
-    # 计算MD5哈希
-    return hashlib.md5(config_str.encode('utf-8')).hexdigest()
 
 
 def calculate_similarity(text1: str, text2: str) -> float:

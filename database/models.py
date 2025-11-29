@@ -131,10 +131,6 @@ class QuestionProviderAnswer(Base):
     # 答案ID（外键）
     answer_id = Column(Integer, ForeignKey('answers.id', ondelete='CASCADE'), nullable=False, comment='答案ID')
 
-    # Provider配置的哈希值（用于区分同一provider不同配置的缓存）
-    # 例如：Like知识库使用不同的model参数可能返回不同答案
-    config_hash = Column(String(64), nullable=True, comment='Provider配置的哈希值，用于区分不同配置')
-
     # 答案置信度/优先级（可选，用于后续优化答案聚合）
     confidence = Column(Integer, default=100, comment='答案置信度，0-100，默认100')
 
@@ -150,10 +146,8 @@ class QuestionProviderAnswer(Base):
 
     # 索引：核心查询索引
     __table_args__ = (
-        # 联合唯一索引：同一题目+provider+配置只能有一个答案
-        Index('idx_unique_question_provider', 'question_id', 'provider_name', 'config_hash', unique=True),
-        # 查询索引：根据题目ID批量查询多个provider
-        Index('idx_question_providers', 'question_id', 'provider_name'),
+        # 联合唯一索引：同一题目+provider只能有一个答案
+        Index('idx_unique_question_provider', 'question_id', 'provider_name', unique=True),
         # 查询索引：根据provider查询所有缓存
         Index('idx_provider_name', 'provider_name'),
     )

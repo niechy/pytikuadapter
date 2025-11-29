@@ -16,7 +16,6 @@ from .config import (
 from .utils import (
     normalize_text,
     normalize_options,
-    compute_config_hash,
     calculate_similarity,
     is_similar_question,
 )
@@ -37,7 +36,6 @@ __all__ = [
     # Utils
     "normalize_text",
     "normalize_options",
-    "compute_config_hash",
     "calculate_similarity",
     "is_similar_question",
 ]

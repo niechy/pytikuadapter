@@ -20,7 +20,7 @@ from typing import List, Dict, Optional, Set
 import asyncio
 
 from .models import Question, Answer, QuestionProviderAnswer
-from .utils import normalize_text, normalize_options, compute_config_hash
+from .utils import normalize_text, normalize_options
 from model import QuestionContent, Provider, A
 from logger import get_logger
 
@@ -87,8 +87,7 @@ class CacheService:
     async def get_cached_answers(
         self,
         question: Question,
-        provider_names: List[str],
-        provider_configs: Dict[str, Dict]
+        provider_names: List[str]
     ) -> Dict[str, Optional[A]]:
         """
         批量获取多个provider的缓存答案（性能优化核心）
@@ -99,25 +98,11 @@ class CacheService:
         Args:
             question: 题目对象
             provider_names: 需要查询的provider名称列表
-            provider_configs: provider配置字典，key为provider名称，value为配置dict
 
         Returns:
             字典，key为provider名称，value为答案对象A（如果没有缓存则为None）
-
-        Example:
-            {
-                "Like知识库": A(provider="Like知识库", choice=["A"], type=0),
-                "万能题库": None,  # 没有缓存
-            }
         """
-        # 计算每个provider的配置哈希
-        config_hashes = {
-            name: compute_config_hash(provider_configs.get(name, {}))
-            for name in provider_names
-        }
-
         # 构建查询：获取该题目下所有相关provider的答案
-        # 使用 selectinload 预加载关联的 answer 对象，避免N+1查询
         query = (
             select(QuestionProviderAnswer)
             .options(selectinload(QuestionProviderAnswer.answer))
@@ -136,13 +121,6 @@ class CacheService:
         cached_answers: Dict[str, Optional[A]] = {name: None for name in provider_names}
 
         for qpa in qpa_list:
-            # 检查配置哈希是否匹配
-            expected_hash = config_hashes.get(qpa.provider_name)
-            if qpa.config_hash != expected_hash:
-                # 配置不匹配，跳过（视为没有缓存）
-                continue
-
-            # 将数据库答案转换为模型A
             answer = qpa.answer
             cached_answers[qpa.provider_name] = A(
                 provider=qpa.provider_name,
@@ -216,13 +194,10 @@ class CacheService:
             await self.session.flush()  # 获取answer_obj.id
 
         # 3. 查找或创建题目-provider-答案关联
-        config_hash = compute_config_hash(provider.config)
-
         qpa_query = select(QuestionProviderAnswer).where(
             and_(
                 QuestionProviderAnswer.question_id == question.id,
-                QuestionProviderAnswer.provider_name == provider.name,
-                QuestionProviderAnswer.config_hash == config_hash
+                QuestionProviderAnswer.provider_name == provider.name
             )
         )
         result = await self.session.execute(qpa_query)
@@ -233,8 +208,7 @@ class CacheService:
             qpa = QuestionProviderAnswer(
                 question_id=question.id,
                 provider_name=provider.name,
-                answer_id=answer_obj.id,
-                config_hash=config_hash
+                answer_id=answer_obj.id
             )
             self.session.add(qpa)
         else:
@@ -298,13 +272,10 @@ class CacheService:
                 await self.session.flush()
 
             # 查找或创建关联
-            config_hash = compute_config_hash(provider.config)
-
             qpa_query = select(QuestionProviderAnswer).where(
                 and_(
                     QuestionProviderAnswer.question_id == question.id,
-                    QuestionProviderAnswer.provider_name == provider.name,
-                    QuestionProviderAnswer.config_hash == config_hash
+                    QuestionProviderAnswer.provider_name == provider.name
                 )
             )
             result = await self.session.execute(qpa_query)
@@ -314,8 +285,7 @@ class CacheService:
                 qpa = QuestionProviderAnswer(
                     question_id=question.id,
                     provider_name=provider.name,
-                    answer_id=answer_obj.id,
-                    config_hash=config_hash
+                    answer_id=answer_obj.id
                 )
                 self.session.add(qpa)
             else:
@@ -355,12 +325,10 @@ async def query_cache_batch(
 
     # 批量查询缓存
     provider_names = [p.name for p in providers]
-    provider_configs = {p.name: p.config for p in providers}
 
     return await cache_service.get_cached_answers(
         question=question,
-        provider_names=provider_names,
-        provider_configs=provider_configs
+        provider_names=provider_names
     )
 
 
