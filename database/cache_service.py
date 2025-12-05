@@ -23,8 +23,12 @@ from .models import Question, Answer, QuestionProviderAnswer
 from .utils import normalize_text, normalize_options
 from model import QuestionContent, Provider, A
 from logger import get_logger
+from services import EmbeddingService, get_embedding_service
 
 log = get_logger("cache")
+
+EMBEDDING_SIMILARITY_THRESHOLD = 0.82
+EMBEDDING_TOP_K = 5
 
 
 class CacheService:
@@ -34,14 +38,16 @@ class CacheService:
     提供题目缓存的查询、写入、更新功能。
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, embedding_service: Optional[EmbeddingService] = None):
         """
         初始化缓存服务
 
         Args:
             session: 数据库会话对象
+            embedding_service: embedding服务实例，默认使用全局单例
         """
         self.session = session
+        self.embedding_service = embedding_service or get_embedding_service()
 
     async def find_question(
         self,
@@ -50,9 +56,9 @@ class CacheService:
         options: Optional[List[str]] = None
     ) -> Optional[Question]:
         """
-        查找题目（精确匹配归一化内容）
+        查找题目
 
-        使用归一化的题目内容和选项进行匹配。
+        优先使用精确匹配（快速），若无匹配则回退到向量相似度匹配。
 
         Args:
             content: 题目内容
@@ -62,11 +68,72 @@ class CacheService:
         Returns:
             匹配的题目对象，如果不存在则返回None
         """
-        # 归一化题目内容和选项
+        # 1. 先尝试精确匹配（快速，无需GPU计算）
+        question = await self._find_by_normalized(content, question_type, options)
+        if question is not None:
+            return question
+
+        # 2. 回退到向量相似度匹配
+        return await self._find_by_embedding(content, question_type, options)
+
+    async def _find_by_embedding(
+        self,
+        content: str,
+        question_type: int,
+        options: Optional[List[str]] = None
+    ) -> Optional[Question]:
+        """使用向量相似度查找题目"""
+        if self.embedding_service is None:
+            return None
+
+        try:
+            text = self._build_embedding_text(content, options)
+            query_vector = await self.embedding_service.embed_query(text)
+        except Exception as e:
+            log.warning(f"生成查询向量失败: {e}")
+            return None
+
+        # 使用余弦距离查询最相似的题目
+        normalized_options = normalize_options(options)
+        distance = Question.embedding.cosine_distance(query_vector)
+        stmt = (
+            select(Question, distance.label("distance"))
+            .where(
+                and_(
+                    Question.type == question_type,
+                    Question.embedding.isnot(None)
+                )
+            )
+            .order_by(distance)
+            .limit(EMBEDDING_TOP_K)
+        )
+
+        result = await self.session.execute(stmt)
+        for question, dist in result:
+            similarity = 1 - float(dist or 0)
+            if similarity >= EMBEDDING_SIMILARITY_THRESHOLD:
+                # 双向校验选项一致性：两边都有选项时必须相等，一边有一边没有则不匹配
+                q_has_options = question.normalized_options is not None
+                req_has_options = normalized_options is not None
+                if q_has_options != req_has_options:
+                    continue
+                if q_has_options and question.normalized_options != normalized_options:
+                    continue
+                log.debug(f"向量匹配成功: similarity={similarity:.4f}, question_id={question.id}")
+                return question
+
+        return None
+
+    async def _find_by_normalized(
+        self,
+        content: str,
+        question_type: int,
+        options: Optional[List[str]] = None
+    ) -> Optional[Question]:
+        """使用归一化内容精确匹配查找题目（兼容旧数据）"""
         normalized_content = normalize_text(content)
         normalized_options = normalize_options(options)
 
-        # 构建查询条件
         query = select(Question).where(
             and_(
                 Question.normalized_content == normalized_content,
@@ -74,15 +141,23 @@ class CacheService:
             )
         )
 
-        # 如果有选项，加入选项匹配条件
         if normalized_options is not None:
             query = query.where(Question.normalized_options == normalized_options)
         else:
             query = query.where(Question.normalized_options.is_(None))
 
-        # 执行查询
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
+
+    def _build_embedding_text(self, content: str, options: Optional[List[str]]) -> str:
+        """构建用于生成 embedding 的文本"""
+        text = (content or "").strip()
+        if options:
+            valid_options = [str(opt).strip() for opt in options if opt is not None]
+            if valid_options:
+                option_text = " ".join(f"{chr(65 + i)}. {opt}" for i, opt in enumerate(valid_options))
+                text = f"{text}\n{option_text}"
+        return text
 
     async def get_cached_answers(
         self,
@@ -159,12 +234,14 @@ class CacheService:
 
         if question is None:
             # 创建新题目
+            embedding = await self._generate_embedding(query.content, query.options)
             question = Question(
                 content=query.content,
                 normalized_content=normalize_text(query.content),
                 type=query.type,
                 options=query.options,
-                normalized_options=normalize_options(query.options)
+                normalized_options=normalize_options(query.options),
+                embedding=embedding
             )
             self.session.add(question)
             await self.session.flush()  # 获取question.id
@@ -237,12 +314,14 @@ class CacheService:
         )
 
         if question is None:
+            embedding = await self._generate_embedding(query.content, query.options)
             question = Question(
                 content=query.content,
                 normalized_content=normalize_text(query.content),
                 type=query.type,
                 options=query.options,
-                normalized_options=normalize_options(query.options)
+                normalized_options=normalize_options(query.options),
+                embedding=embedding
             )
             self.session.add(question)
             await self.session.flush()
@@ -292,6 +371,21 @@ class CacheService:
                 qpa.answer_id = answer_obj.id
 
         await self.session.commit()
+
+    async def _generate_embedding(
+        self,
+        content: str,
+        options: Optional[List[str]] = None
+    ) -> Optional[List[float]]:
+        """为新题目生成 embedding 向量（使用 passage 编码）"""
+        if self.embedding_service is None:
+            return None
+        try:
+            text = self._build_embedding_text(content, options)
+            return await self.embedding_service.embed_passage(text)
+        except Exception as e:
+            log.warning(f"生成embedding失败: {e}")
+            return None
 
 
 async def query_cache_batch(

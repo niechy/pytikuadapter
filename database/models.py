@@ -17,6 +17,7 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -49,6 +50,9 @@ class Question(Base):
     # 归一化后的选项（排序后的JSONB，用于匹配）
     normalized_options = Column(JSONB, nullable=True, comment='归一化选项列表（排序后），用于模糊匹配')
 
+    # BGE-M3 embedding 向量 (1024维，已归一化)
+    embedding = Column(Vector(1024), nullable=True, comment='BGE-M3 embedding向量')
+
     # 创建时间
     created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
 
@@ -64,6 +68,14 @@ class Question(Base):
         Index('idx_normalized_content_type', 'normalized_content', 'type'),
         # JSON字段使用GIN索引（支持包含查询）
         Index('idx_normalized_options', 'normalized_options', postgresql_using='gin'),
+        # 向量索引：使用 IVFFlat 索引加速余弦相似度搜索
+        Index(
+            'idx_questions_embedding',
+            'embedding',
+            postgresql_using='ivfflat',
+            postgresql_with={'lists': 100},
+            postgresql_ops={'embedding': 'vector_cosine_ops'}
+        ),
     )
 
     def __repr__(self):
