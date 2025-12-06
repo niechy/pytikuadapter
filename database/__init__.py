@@ -4,7 +4,16 @@
 提供数据库模型、配置、工具函数和缓存服务。
 """
 
-from .models import Question, Answer, QuestionProviderAnswer, AuthToken, Base
+from .models import (
+    Question,
+    Answer,
+    QuestionProviderAnswer,
+    User,
+    UserToken,
+    TokenProviderConfig,
+    EmailVerificationCode,
+    Base,
+)
 from .config import (
     DatabaseConfig,
     DatabaseManager,
@@ -25,7 +34,10 @@ __all__ = [
     "Question",
     "Answer",
     "QuestionProviderAnswer",
-    "AuthToken",
+    "User",
+    "UserToken",
+    "TokenProviderConfig",
+    "EmailVerificationCode",
     "Base",
     # Config
     "DatabaseConfig",

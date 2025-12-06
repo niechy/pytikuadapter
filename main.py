@@ -1,19 +1,25 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import asyncio
+import os
 from contextlib import asynccontextmanager
 
-from aiohttp import ClientResponseError
-from fastapi import FastAPI, Header, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import ValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from model import QuestionRequest, Res, Provider, A
+from model import QuestionRequest, Provider, A
 import providers.manager as manager
 from core import construct_res
 import uvicorn
 from database import init_database, close_database, get_db_session
 from database.cache_service import query_cache_batch, save_cache_async
-from database.auth_service import is_auth_enabled, verify_token
-from sqlalchemy.ext.asyncio import AsyncSession
+from database.models import UserToken
+from services.dependencies import get_api_token
+from services.auth_service import get_token_provider_configs
+from services.routers import auth_router, tokens_router, providers_router, providers_token_router
 from logger import get_logger
 
 log = get_logger("main")
@@ -23,18 +29,6 @@ mgr = manager.ProvidersManager()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """
-    应用生命周期管理
-
-    启动时：
-    1. 初始化数据库连接和表结构
-    2. 初始化aiohttp会话
-    3. 显示可用的适配器列表
-
-    关闭时：
-    1. 关闭aiohttp会话
-    2. 关闭数据库连接
-    """
     log.info("正在初始化数据库...")
     await init_database()
     log.info("数据库初始化完成")
@@ -51,106 +45,97 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def get_api_key(authorization: str = Header(None)):
-    """
-    从请求头中提取API Key
-
-    如果鉴权未启用，返回None
-    如果鉴权启用但未提供token，抛出401异常
-    """
-    if not is_auth_enabled():
-        return None
-
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization header")
-    token = authorization.split(" ", 1)[1]
-    return token
-
-
-async def verify_api_key(
-    api_key: str = Depends(get_api_key),
-    session: AsyncSession = Depends(get_db_session)
-):
-    """
-    验证API Key是否有效
-
-    如果鉴权未启用，直接通过
-    如果鉴权启用，验证token是否存在于数据库中
-    """
-    if not is_auth_enabled():
-        return None
-
-    if not await verify_token(session, api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-    return api_key
+# 注册路由
+app.include_router(auth_router)
+app.include_router(tokens_router)
+app.include_router(providers_router)
+app.include_router(providers_token_router)
 
 
 MAX_CONCURRENT = 20
 
 
 async def _call_adapter(ad, question, provider, sem: asyncio.Semaphore):
-    """
-    在信号量保护下调用单个 providers.search，捕获异常并返回统一结构。
-    """
     async with sem:
         return await ad.search(question, provider)
+
+
+async def resolve_providers(
+    request_providers: list[Provider],
+    user_token: UserToken,
+    session: AsyncSession
+) -> list[Provider]:
+    """
+    解析最终使用的 providers 列表
+
+    优先级：
+    1. 如果请求中指定了 providers，使用请求中的
+    2. 如果请求中没有指定但有 token 配置，使用 token 配置
+    """
+    if request_providers:
+        return request_providers
+
+    # 从 token 配置中获取 providers
+    configs = await get_token_provider_configs(session, user_token.id)
+    providers = []
+    for config in configs:
+        if config.enabled:
+            providers.append(Provider(
+                name=config.provider_name,
+                priority=0,
+                config=config.config_json
+            ))
+    return providers
 
 
 @app.post("/v1/adapter-service/search")
 async def search(
     _search_request: QuestionRequest,
-    _api_key: str = Depends(verify_api_key),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    user_token: UserToken = Depends(get_api_token)
 ):
-    """
-    题目搜索接口
+    # 解析 providers
+    providers_list = await resolve_providers(
+        _search_request.providers,
+        user_token,
+        session
+    )
 
-    流程：
-    1. 批量查询缓存（一次查询获取所有provider的缓存）
-    2. 对于有缓存的provider：
-       - 如果请求中包含该provider，使用缓存答案
-       - 如果请求中不包含该provider，忽略缓存
-    3. 对于没有缓存的provider，调用实际的adapter查询
-    4. 异步写入新的答案到缓存（不阻塞响应）
-    5. 返回聚合结果
+    if not providers_list:
+        raise HTTPException(status_code=400, detail="No providers specified")
 
-    Args:
-        _search_request: 搜索请求，包含题目和provider列表
-        api_key: API密钥（用于鉴权）
-        session: 数据库会话（依赖注入）
-
-    Returns:
-        Res: 聚合后的搜索结果
-    """
     # 1. 批量查询缓存
     cached_answers = await query_cache_batch(
         session=session,
         query=_search_request.query,
-        providers=_search_request.providers
+        providers=providers_list
     )
 
     # 2. 分离有缓存和无缓存的provider
-    providers_to_query = []  # 需要实际查询的provider
-    answers_from_cache = []  # 从缓存获取的答案
-    requested_provider_names = {p.name for p in _search_request.providers}
+    providers_to_query = []
+    answers_from_cache = []
 
-    for provider in _search_request.providers:
+    for provider in providers_list:
         cached_answer = cached_answers.get(provider.name)
-
         if cached_answer is not None:
-            # 有缓存，直接使用
             log.debug(f"缓存命中: {provider.name}")
             answers_from_cache.append(cached_answer)
         else:
-            # 无缓存，需要查询
             providers_to_query.append(provider)
 
     # 3. 并发查询没有缓存的provider
     sem = asyncio.Semaphore(MAX_CONCURRENT)
     tasks = []
-    valid_providers = []  # 实际创建了task的provider
+    valid_providers = []
 
     for provider in providers_to_query:
         adapter = mgr.get_adapter_achieve(provider.name)
@@ -159,27 +144,23 @@ async def search(
             continue
 
         valid_providers.append(provider)
-        # create_task 立即调度，但实际并发由 sem 控制
         tasks.append(
             asyncio.create_task(
                 _call_adapter(adapter, _search_request.query, provider, sem)
             )
         )
 
-    # 等待所有查询完成
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # 4. 处理查询结果
-    answers_from_query = []  # 从实际查询获取的答案
-    provider_answer_pairs = []  # 用于异步写入缓存的数据
+    answers_from_query = []
+    provider_answer_pairs = []
 
     for i, res in enumerate(results):
         provider = valid_providers[i]
 
         if isinstance(res, Exception):
-            # 发生了未捕获的异常（理论上不应该发生，因为provider内部应该捕获所有异常）
             log.error(f"未捕获异常 [{provider.name}]: {type(res).__name__}: {res}")
-            # 创建一个失败的答案对象
             error_answer = A(
                 provider=provider.name,
                 type=_search_request.query.type,
@@ -189,10 +170,8 @@ async def search(
             )
             answers_from_query.append(error_answer)
         else:
-            # 正常返回的 A 对象
             if res.success:
                 log.debug(f"成功 [{res.provider}]: {res.choice or res.text or res.judgement}")
-                # 只有成功的答案且适配器允许缓存才写入缓存
                 adapter = mgr.get_adapter_achieve(provider.name)
                 if adapter and getattr(adapter, 'CACHEABLE', True):
                     provider_answer_pairs.append((provider, res))
@@ -204,7 +183,7 @@ async def search(
     # 5. 合并缓存答案和查询答案
     all_answers = answers_from_cache + answers_from_query
 
-    # 6. 异步写入缓存（不阻塞响应）
+    # 6. 异步写入缓存
     if provider_answer_pairs:
         asyncio.create_task(
             save_cache_async(_search_request.query, provider_answer_pairs)
@@ -213,7 +192,6 @@ async def search(
     # 7. 构造并返回响应
     result = construct_res(_search_request.query, all_answers)
 
-    # 输出统计信息
     log.info(
         f"查询统计: 总数={result.total_providers}, "
         f"成功={result.successful_providers}, 失败={result.failed_providers}, "
@@ -225,4 +203,3 @@ async def search(
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host="127.0.0.1", port=8060, log_level='info')
-    # uvicorn demo:app --host 0.0.0.0 --port 8060 --workers 4 --log-level info

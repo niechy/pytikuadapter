@@ -14,7 +14,7 @@
 - 支持批量查询：通过JOIN优化多provider查询性能
 """
 
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -108,24 +108,69 @@ class Answer(Base):
         return f"<Answer(id={self.id}, type={self.type}, choice={self.choice}, judgement={self.judgement})>"
 
 
-class AuthToken(Base):
-    """
-    鉴权Token表
+class User(Base):
+    """用户表"""
+    __tablename__ = 'users'
 
-    存储API访问令牌，用于接口鉴权。
-    """
-    __tablename__ = 'auth_tokens'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(64), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    email_verified = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    id = Column(Integer, primary_key=True, autoincrement=True, comment='Token ID')
-
-    # Token值
-    token = Column(String(255), nullable=False, unique=True, index=True, comment='API访问令牌')
-
-    # 创建时间
-    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    tokens = relationship('UserToken', back_populates='user', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<AuthToken(id={self.id}, token='{self.token[:8]}...')>"
+        return f"<User(id={self.id}, username='{self.username}')>"
+
+
+class UserToken(Base):
+    """用户API Token表"""
+    __tablename__ = 'user_tokens'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    name = Column(String(100), nullable=False)
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+
+    user = relationship('User', back_populates='tokens')
+    provider_configs = relationship('TokenProviderConfig', back_populates='token', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'name', name='uq_user_token_name'),
+        Index('idx_user_token_user', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<UserToken(id={self.id}, name='{self.name}')>"
+
+
+class TokenProviderConfig(Base):
+    """Token级Provider配置"""
+    __tablename__ = 'token_provider_configs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token_id = Column(Integer, ForeignKey('user_tokens.id', ondelete='CASCADE'), nullable=False)
+    provider_name = Column(String(100), nullable=False)
+    api_key = Column(String(512), nullable=True)
+    config_json = Column(JSONB, nullable=False, default=dict)
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    token = relationship('UserToken', back_populates='provider_configs')
+
+    __table_args__ = (
+        Index('idx_token_provider_unique', 'token_id', 'provider_name', unique=True),
+    )
+
+    def __repr__(self):
+        return f"<TokenProviderConfig(token_id={self.token_id}, provider='{self.provider_name}')>"
 
 
 class QuestionProviderAnswer(Base):
@@ -174,3 +219,17 @@ class QuestionProviderAnswer(Base):
 
     def __repr__(self):
         return f"<QuestionProviderAnswer(question_id={self.question_id}, provider={self.provider_name}, answer_id={self.answer_id})>"
+
+
+class EmailVerificationCode(Base):
+    """邮箱验证码表"""
+    __tablename__ = 'email_verification_codes'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    code = Column(String(32), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<EmailVerificationCode(user_id={self.user_id})>"
