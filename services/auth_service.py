@@ -63,11 +63,6 @@ def decode_access_token(token: str) -> Optional[dict]:
         return None
 
 
-async def get_user_by_username(session: AsyncSession, username: str) -> Optional[User]:
-    result = await session.execute(select(User).where(User.username == username))
-    return result.scalar_one_or_none()
-
-
 async def get_user_by_email(session: AsyncSession, email: str) -> Optional[User]:
     result = await session.execute(select(User).where(User.email == email))
     return result.scalar_one_or_none()
@@ -78,26 +73,35 @@ async def get_user_by_id(session: AsyncSession, user_id: int) -> Optional[User]:
     return result.scalar_one_or_none()
 
 
-async def create_user(session: AsyncSession, username: str, email: str, password: str) -> User:
+async def create_user(session: AsyncSession, email: str, password: str) -> User:
     user = User(
-        username=username,
         email=email,
         password_hash=hash_password(password),
         email_verified=not is_email_verification_required()
     )
     session.add(user)
     await session.flush()
-    log.info(f"Created user: {username}")
+    log.info(f"Created user: {email}")
     return user
 
 
-async def authenticate_user(session: AsyncSession, username: str, password: str) -> Optional[User]:
-    user = await get_user_by_username(session, username)
+async def authenticate_user(session: AsyncSession, email: str, password: str) -> Optional[User]:
+    user = await get_user_by_email(session, email)
     if not user or not verify_password(password, user.password_hash):
         return None
     if not user.is_active:
         return None
     return user
+
+
+async def update_user_password(session: AsyncSession, user_id: int, new_password: str) -> bool:
+    user = await get_user_by_id(session, user_id)
+    if not user:
+        return False
+    user.password_hash = hash_password(new_password)
+    await session.flush()
+    log.info(f"Password updated for user {user_id}")
+    return True
 
 
 # ========== User Token Management ==========

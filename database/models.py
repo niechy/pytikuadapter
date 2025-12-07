@@ -113,7 +113,6 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(64), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     email_verified = Column(Boolean, default=False)
@@ -124,7 +123,7 @@ class User(Base):
     tokens = relationship('UserToken', back_populates='user', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<User(id={self.id}, username='{self.username}')>"
+        return f"<User(id={self.id}, email='{self.email}')>"
 
 
 class UserToken(Base):
@@ -233,3 +232,16 @@ class EmailVerificationCode(Base):
 
     def __repr__(self):
         return f"<EmailVerificationCode(user_id={self.user_id})>"
+
+
+class ProviderOrder(Base):
+    """Provider 展示顺序表"""
+    __tablename__ = 'provider_orders'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider_name = Column(String(100), nullable=False, unique=True, index=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<ProviderOrder(name='{self.provider_name}', order={self.sort_order})>"

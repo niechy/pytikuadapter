@@ -12,8 +12,8 @@ from model import QuestionContent, Provider, A
 class EveryAPI(Providersbase):
     """everyAPI题库适配器"""
     name = "everyAPI题库"
-    home = "https://www.everyapi.com/"
-    url = "https://www.everyapi.com/api/v1/q/{question}"
+    home = "https://q.icodef.com/"
+    url = "https://q.icodef.com/api/v1/q/{question}"
     FREE = True
     PAY = True
 

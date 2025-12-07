@@ -32,12 +32,27 @@ def _create_dm_client():
     return DmClient(api_config)
 
 
-async def send_verification_email(to_email: str, code: str) -> bool:
-    """发送验证邮件"""
+async def send_verification_email(to_email: str, code: str, purpose: str = "verify") -> bool:
+    """发送验证邮件
+
+    Args:
+        to_email: 收件人邮箱
+        code: 验证码
+        purpose: 用途，"verify" 为邮箱验证，"reset_password" 为重置密码
+    """
     from alibabacloud_dm20151123 import models as dm_models
     from alibabacloud_tea_util import models as util_models
 
     config = get_email_config()
+
+    if purpose == "reset_password":
+        subject = "TikuAdapter 重置密码"
+        title = "重置密码"
+        hint = "如果您没有请求重置密码，请忽略此邮件。"
+    else:
+        subject = "TikuAdapter 邮箱验证"
+        title = "邮箱验证"
+        hint = "如果您没有注册 TikuAdapter，请忽略此邮件。"
 
     try:
         client = _create_dm_client()
@@ -47,20 +62,20 @@ async def send_verification_email(to_email: str, code: str) -> bool:
             from_alias=config["from_alias"],
             reply_to_address=False,
             to_address=to_email,
-            subject="TikuAdapter 邮箱验证",
+            subject=subject,
             html_body=f"""
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2>邮箱验证</h2>
+                <h2>{title}</h2>
                 <p>您的验证码是：</p>
                 <p style="font-size: 24px; font-weight: bold; color: #4F46E5; letter-spacing: 4px;">{code}</p>
                 <p>验证码有效期为 15 分钟。</p>
-                <p style="color: #666; font-size: 12px;">如果您没有注册 TikuAdapter，请忽略此邮件。</p>
+                <p style="color: #666; font-size: 12px;">{hint}</p>
             </div>
             """
         )
         runtime = util_models.RuntimeOptions()
         await client.single_send_mail_with_options_async(request, runtime)
-        log.info(f"Verification email sent to {to_email}")
+        log.info(f"Verification email ({purpose}) sent to {to_email}")
         return True
     except Exception as e:
         log.error(f"Failed to send email to {to_email}: {e}")
@@ -121,4 +136,39 @@ async def verify_code_by_email(session: AsyncSession, email: str, code: str) -> 
 
     await session.flush()
     log.info(f"Email verified for user {user.id}")
+    return True
+
+
+async def reset_password_by_email(session: AsyncSession, email: str, code: str, new_password: str) -> bool:
+    """通过邮箱和验证码重置密码"""
+    import bcrypt
+
+    # 先找到用户
+    user_result = await session.execute(select(User).where(User.email == email))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        return False
+
+    # 查找验证码
+    result = await session.execute(
+        select(EmailVerificationCode).where(
+            EmailVerificationCode.user_id == user.id,
+            EmailVerificationCode.code == code.upper()
+        )
+    )
+    verification = result.scalar_one_or_none()
+
+    if not verification:
+        return False
+
+    if verification.expires_at < datetime.utcnow():
+        await session.delete(verification)
+        return False
+
+    # 验证成功，删除验证码并更新密码
+    await session.delete(verification)
+    user.password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+
+    await session.flush()
+    log.info(f"Password reset for user {user.id}")
     return True

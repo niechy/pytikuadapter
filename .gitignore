@@ -187,3 +187,5 @@ node_modules/
 /playwright/.cache/
 /poetry.lock
 /.claude/
+/.serena/
+/.gemini/

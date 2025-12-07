@@ -12,11 +12,13 @@ from .models import (
     UserToken,
     TokenProviderConfig,
     EmailVerificationCode,
+    ProviderOrder,
     Base,
 )
 from .config import (
     DatabaseConfig,
     DatabaseManager,
+    DatabaseInitError,
     db_manager,
     init_database,
     close_database,
@@ -38,10 +40,12 @@ __all__ = [
     "UserToken",
     "TokenProviderConfig",
     "EmailVerificationCode",
+    "ProviderOrder",
     "Base",
     # Config
     "DatabaseConfig",
     "DatabaseManager",
+    "DatabaseInitError",
     "db_manager",
     "init_database",
     "close_database",

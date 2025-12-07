@@ -10,6 +10,7 @@ from services.schemas import (
 )
 from services.auth_service import get_token_provider_configs, upsert_provider_config
 from services.dependencies import get_current_user
+from services.provider_order import get_ordered_providers
 from providers.manager import ProvidersManager
 
 router = APIRouter(prefix="/api/providers", tags=["题库Provider"])
@@ -44,8 +45,8 @@ def _extract_config_fields(configs_cls) -> list[ProviderConfigField]:
 async def list_available_providers():
     """获取系统支持的所有题库Provider及其配置字段说明"""
     providers = []
-    for name in _mgr.available_plugins():
-        adapter = _mgr.get_adapter(name)
+    for p in get_ordered_providers():
+        adapter = _mgr.get_adapter(p["name"])
         if not adapter:
             continue
 
@@ -54,10 +55,10 @@ async def list_available_providers():
             config_fields = _extract_config_fields(adapter.Configs)
 
         providers.append(ProviderInfo(
-            name=name,
-            home=getattr(adapter, 'home', None),
-            free=getattr(adapter, 'FREE', False),
-            pay=getattr(adapter, 'PAY', False),
+            name=p["name"],
+            home=p.get("home"),
+            free=p.get("free", False),
+            pay=p.get("pay", False),
             config_fields=config_fields
         ))
     return providers

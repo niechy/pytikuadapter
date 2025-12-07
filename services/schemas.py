@@ -6,26 +6,31 @@ from pydantic import BaseModel, EmailStr, Field
 # ========== Auth Schemas ==========
 class UserCreate(BaseModel):
     """用户注册请求"""
-    username: str = Field(..., min_length=3, max_length=64, description="用户名")
     email: EmailStr = Field(..., description="邮箱地址")
     password: str = Field(..., min_length=6, description="密码")
 
 
 class UserLogin(BaseModel):
     """用户登录请求"""
-    username: str = Field(..., description="用户名")
+    email: EmailStr = Field(..., description="邮箱地址")
     password: str = Field(..., description="密码")
 
 
 class UserPublic(BaseModel):
     """用户公开信息"""
     id: int = Field(..., description="用户ID")
-    username: str = Field(..., description="用户名")
     email: str = Field(..., description="邮箱地址")
     email_verified: bool = Field(..., description="邮箱是否已验证")
     created_at: datetime = Field(..., description="创建时间")
 
     model_config = {"from_attributes": True}
+
+
+class ResetPasswordRequest(BaseModel):
+    """重置密码请求"""
+    email: EmailStr = Field(..., description="邮箱地址")
+    code: str = Field(..., description="验证码")
+    new_password: str = Field(..., min_length=6, description="新密码")
 
 
 class TokenResponse(BaseModel):

@@ -5,13 +5,16 @@
 使用异步SQLAlchemy支持高并发场景。
 """
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from typing import Optional, AsyncGenerator
 import os
 from contextlib import asynccontextmanager
+from typing import Optional, AsyncGenerator
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
+from asyncpg import exceptions as pg_exc
+from dotenv import load_dotenv
 
 from .models import Base
-from dotenv import load_dotenv
 from logger import get_logger
 
 log = get_logger("database")
@@ -60,6 +63,11 @@ class DatabaseConfig:
         return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
 
 
+class DatabaseInitError(Exception):
+    """数据库初始化失败异常，包含用户友好的错误信息"""
+    pass
+
+
 class DatabaseManager:
     """
     数据库管理器
@@ -83,6 +91,52 @@ class DatabaseManager:
         if not hasattr(self, '_initialized'):
             self.config = DatabaseConfig()
             self._initialized = True
+
+    def _translate_error(self, error: Exception) -> str:
+        """将数据库异常转换为用户友好的中文提示"""
+        orig = getattr(error, "orig", error)
+        msg = str(orig).lower()
+        cfg = self.config
+
+        if isinstance(orig, pg_exc.InsufficientPrivilegeError) or "permission denied" in msg:
+            return (
+                f"数据库权限不足：用户 `{cfg.user}` 没有在 schema 中创建表的权限。\n"
+                f"解决方法：请让数据库管理员执行 GRANT CREATE ON SCHEMA public TO {cfg.user};"
+            )
+
+        if isinstance(orig, (pg_exc.InvalidPasswordError, pg_exc.InvalidAuthorizationSpecificationError)) or "authentication failed" in msg:
+            return (
+                f"数据库认证失败：用户名或密码错误。\n"
+                f"请检查环境变量 DB_USER={cfg.user} 和 DB_PASSWORD 是否正确。"
+            )
+
+        if isinstance(orig, pg_exc.InvalidCatalogNameError) or (f'database "{cfg.database}"' in msg and "does not exist" in msg):
+            return (
+                f"数据库不存在：`{cfg.database}` 不存在。\n"
+                f"请先创建数据库或修改 DB_NAME 环境变量。"
+            )
+
+        is_conn_refused = (
+            isinstance(orig, ConnectionRefusedError)
+            or (isinstance(orig, OSError) and getattr(orig, "errno", None) in {61, 111})
+            or "connection refused" in msg
+        )
+        if is_conn_refused:
+            return (
+                f"无法连接数据库：{cfg.host}:{cfg.port} 连接被拒绝。\n"
+                f"请确认 PostgreSQL 服务已启动且网络可达。"
+            )
+
+        if "timeout" in msg:
+            return (
+                f"数据库连接超时：无法在规定时间内连接到 {cfg.host}:{cfg.port}。\n"
+                f"请检查网络连接和防火墙设置。"
+            )
+
+        return (
+            f"数据库初始化失败：发生未知错误。\n"
+            f"请检查数据库配置（{cfg.host}:{cfg.port}/{cfg.database}）并查看日志获取详细信息。"
+        )
 
     async def init_engine(self):
         """
@@ -122,10 +176,14 @@ class DatabaseManager:
         if self._engine is None:
             await self.init_engine()
 
-        async with self._engine.begin() as conn:
-            # 创建所有表（如果不存在）
-            await conn.run_sync(Base.metadata.create_all)
-            log.info("数据库表创建完成")
+        try:
+            async with self._engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+                log.info("数据库表创建完成")
+        except SQLAlchemyError as e:
+            user_msg = self._translate_error(e)
+            log.error(f"数据库表创建失败: {user_msg}", exc_info=True)
+            raise DatabaseInitError(user_msg) from e
 
     async def drop_tables(self):
         """
@@ -193,9 +251,19 @@ async def init_database():
 
     应该在应用启动时调用。
     包括：初始化引擎、创建表结构。
+
+    Raises:
+        DatabaseInitError: 数据库初始化失败时抛出，包含用户友好的错误信息
     """
-    await db_manager.init_engine()
-    await db_manager.create_tables()
+    try:
+        await db_manager.init_engine()
+        await db_manager.create_tables()
+    except DatabaseInitError:
+        raise
+    except Exception as e:
+        user_msg = db_manager._translate_error(e)
+        log.error(f"数据库初始化失败: {user_msg}", exc_info=True)
+        raise DatabaseInitError(user_msg) from e
 
 
 async def close_database():

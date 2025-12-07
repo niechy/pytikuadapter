@@ -4,9 +4,6 @@ Local缓存适配器
 从本地数据库缓存中查询答案，不进行网络请求。
 """
 
-from typing import Optional
-from pydantic import BaseModel, Field
-
 from .manager import Providersbase
 from model import QuestionContent, Provider, A
 from database.cache_service import CacheService
@@ -19,6 +16,7 @@ class Local(Providersbase):
 
     从本地数据库缓存中查询答案。
     这个适配器不会进行网络请求，只返回已缓存的数据。
+    只要 provider 列表中包含 Local 就会被调用。
     """
 
     name = "Local"
@@ -26,10 +24,6 @@ class Local(Providersbase):
     FREE = True
     PAY = False
     CACHEABLE = False  # 本地缓存适配器的答案不需要再存入缓存
-
-    class Configs(BaseModel):
-        """Local适配器的配置参数"""
-        enabled: bool = Field(True, description="是否启用本地缓存查询")
 
     async def _search(self, query: QuestionContent, provider: Provider) -> A:
         """
@@ -45,18 +39,6 @@ class Local(Providersbase):
             - 缓存未命中：返回失败，error_type="cache_miss"
         """
         try:
-            # 验证配置
-            config = self.Configs(**provider.config)
-
-            if not config.enabled:
-                return A(
-                    provider=self.name,
-                    type=query.type,
-                    success=False,
-                    error_type="config_error",
-                    error_message="Local缓存查询未启用"
-                )
-
             # 获取数据库会话
             async with db_manager.get_session() as session:
                 cache_service = CacheService(session)
