@@ -29,20 +29,76 @@ async def _call_adapter(adapter: Providersbase, question, provider, sem: asyncio
         return await adapter.search(question, provider)
 
 
+def _merge_config(base: dict, override: dict) -> dict:
+    """
+    融合两个配置，override 中的字段优先
+
+    Args:
+        base: 基础配置（来自 token 配置）
+        override: 覆盖配置（来自请求）
+
+    Returns:
+        融合后的配置
+    """
+    merged = dict(base) if base else {}
+    if override:
+        merged.update(override)
+    return merged
+
+
 async def _resolve_providers(
-    request_providers: list[Provider],
+    request_providers: list[Provider] | None,
     user_token: UserToken,
     session: AsyncSession
 ) -> list[Provider]:
-    """解析最终使用的 providers 列表（请求指定 > token 配置）"""
-    if request_providers:
-        return request_providers
+    """
+    解析并融合 providers 配置
 
-    configs = await get_token_provider_configs(session, user_token.id)
-    return [
-        Provider(name=c.provider_name, priority=0, config=c.config_json)
-        for c in configs if c.enabled
-    ]
+    优先级规则：
+    1. 请求中指定的 provider 会被使用
+    2. 请求中的 config 与 token 配置融合，请求优先
+    3. 请求中未指定的 provider，使用 token 配置中已启用的
+
+    融合示例：
+    - token 配置: {"key": "xxx"}
+    - 请求配置: {"model": "gpt-4"}
+    - 融合结果: {"key": "xxx", "model": "gpt-4"}
+
+    如有冲突，请求配置优先。
+    """
+    # 获取 token 中保存的配置
+    token_configs = await get_token_provider_configs(session, user_token.id)
+    token_config_map = {c.provider_name: c for c in token_configs if c.enabled}
+
+    # 如果请求中没有指定 providers，直接使用 token 配置
+    if not request_providers:
+        return [
+            Provider(name=c.provider_name, priority=0, config=c.config_json)
+            for c in token_configs if c.enabled
+        ]
+
+    # 融合请求配置和 token 配置
+    merged_providers = []
+    request_names = set()
+
+    for req_provider in request_providers:
+        request_names.add(req_provider.name)
+        token_cfg = token_config_map.get(req_provider.name)
+
+        if token_cfg:
+            # 融合配置：token 配置为基础，请求配置覆盖
+            merged_config = _merge_config(token_cfg.config_json, req_provider.config)
+        else:
+            # token 中没有该 provider 的配置，直接使用请求配置
+            merged_config = req_provider.config or {}
+
+        merged_providers.append(Provider(
+            name=req_provider.name,
+            priority=req_provider.priority,
+            config=merged_config
+        ))
+
+    return merged_providers
 
 
 @router.post("/search")

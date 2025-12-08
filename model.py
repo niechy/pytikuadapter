@@ -3,8 +3,8 @@ from typing import Optional, List, Dict, Any
 
 class Provider(BaseModel):
     name: str = Field(..., description="适配器名称")
-    priority: Optional[int]=Field(0, description="适配器优先级，数字越大优先级越高，默认0")
-    config: Dict[str, Any] = Field(..., description="适配器配置参数")
+    priority: Optional[int] = Field(0, description="适配器优先级，数字越大优先级越高，默认0")
+    config: Optional[Dict[str, Any]] = Field(None, description="适配器配置参数")
 
 
 
@@ -13,9 +13,9 @@ class  QuestionContent(BaseModel):
     options: Optional[List[str]] = Field(None, description="题目选项")
     type: Optional[int] = Field(None, ge=0, le=4, description="题目类型，0-单选，1-多选，2-填空，3-判断，4-问答")
 
-class QuestionRequest(BaseModel):#问题
+class QuestionRequest(BaseModel):
     query: QuestionContent = Field(..., description="题目信息")
-    providers:list[Provider] = Field(..., description="使用的适配器及其配置")#这里再说一点，每个适配器有一个Configs
+    providers: Optional[List[Provider]] = Field(None, description="使用的适配器及其配置，不传则使用token中配置的providers")
     #那里面定义的字段就是该适配器需要的参数，可以参考下adapter/like.py中的Like类
 
 class A(BaseModel):#每个适配器返回答案

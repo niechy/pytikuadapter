@@ -56,7 +56,7 @@ class Like(Providersbase):
                 "Authorization": f"Bearer {config.key}"
             }
 
-            async with self.session.post(self.url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            async with self.session.post(self.url, headers=headers, json=body) as response:
                 if response.status != 200:
                     return self._fail(query.type, "api_error", f"HTTP {response.status}: {response.reason}")
 

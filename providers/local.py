@@ -19,7 +19,7 @@ class Local(Providersbase):
     只要 provider 列表中包含 Local 就会被调用。
     """
 
-    name = "Local"
+    name = "tikuadapter缓存"
     home = "本地缓存"
     FREE = True
     PAY = False

@@ -61,19 +61,11 @@ class UserTokenRead(BaseModel):
     """API Token信息"""
     id: int = Field(..., description="Token ID")
     name: str = Field(..., description="Token名称")
-    token_preview: str = Field(..., description="Token预览（仅显示前后几位）")
+    token: str = Field(..., description="完整Token")
     created_at: datetime = Field(..., description="创建时间")
     last_used_at: Optional[datetime] = Field(None, description="最后使用时间")
 
     model_config = {"from_attributes": True}
-
-
-class UserTokenCreated(BaseModel):
-    """Token创建成功响应"""
-    id: int = Field(..., description="Token ID")
-    name: str = Field(..., description="Token名称")
-    token: str = Field(..., description="完整Token（仅创建时返回，请妥善保存）")
-    created_at: datetime = Field(..., description="创建时间")
 
 
 # ========== Provider Config Schemas ==========

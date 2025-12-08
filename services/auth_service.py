@@ -7,6 +7,7 @@ from typing import Optional
 import bcrypt
 from jose import jwt, JWTError
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import User, UserToken, TokenProviderConfig
@@ -137,12 +138,16 @@ async def delete_user_token(session: AsyncSession, user_id: int, token_id: int) 
 
 
 async def get_user_token_by_value(session: AsyncSession, token_value: str) -> Optional[UserToken]:
-    result = await session.execute(select(UserToken).where(UserToken.token == token_value))
+    result = await session.execute(
+        select(UserToken)
+        .options(selectinload(UserToken.user))
+        .where(UserToken.token == token_value)
+    )
     return result.scalar_one_or_none()
 
 
 async def update_token_last_used(session: AsyncSession, token: UserToken):
-    token.last_used_at = datetime.now(timezone.utc)
+    token.last_used_at = datetime.utcnow()
     await session.flush()
 
 

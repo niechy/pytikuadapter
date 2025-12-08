@@ -2,17 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db_session
-from services.schemas import UserTokenCreate, UserTokenRead, UserTokenCreated
+from services.schemas import UserTokenCreate, UserTokenRead
 from services.auth_service import get_user_tokens, create_user_token, delete_user_token
 from services.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/tokens", tags=["API Token"])
 
-
-def mask_token(token: str) -> str:
-    if len(token) <= 8:
-        return "****"
-    return f"{token[:4]}...{token[-4:]}"
+MAX_TOKENS_PER_USER = 10
 
 
 @router.get("", response_model=list[UserTokenRead], summary="获取Token列表")
@@ -26,7 +22,7 @@ async def list_tokens(
         UserTokenRead(
             id=t.id,
             name=t.name,
-            token_preview=mask_token(t.token),
+            token=t.token,
             created_at=t.created_at,
             last_used_at=t.last_used_at
         )
@@ -34,20 +30,25 @@ async def list_tokens(
     ]
 
 
-@router.post("", response_model=UserTokenCreated, status_code=201, summary="创建Token")
+@router.post("", response_model=UserTokenRead, status_code=201, summary="创建Token")
 async def create_token(
     data: UserTokenCreate,
     current_user=Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session)
 ):
-    """创建新的API Token。完整Token仅在创建时返回一次，请妥善保存。"""
+    """创建新的API Token"""
+    existing_tokens = await get_user_tokens(session, current_user.id)
+    if len(existing_tokens) >= MAX_TOKENS_PER_USER:
+        raise HTTPException(status_code=400, detail=f"Maximum {MAX_TOKENS_PER_USER} tokens allowed per user")
+
     token = await create_user_token(session, current_user.id, data.name)
     await session.commit()
-    return UserTokenCreated(
+    return UserTokenRead(
         id=token.id,
         name=token.name,
         token=token.token,
-        created_at=token.created_at
+        created_at=token.created_at,
+        last_used_at=token.last_used_at
     )
 
 
